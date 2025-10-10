@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comparador de Factura y Proforma (Excel)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <h1>Comparador de Factura Electrónica y Proforma de Venta</h1>
+      <nav>
+        <a href="Conversion.html" class="nav-btn">Ir a Conversion</a>
+      </nav>
+    </div>
+  </header>
+
+
+  <main>
+    <!-- Sección de carga -->
+    <section class="upload-section">
+      <div class="upload-box">
+        <label for="excelFile1">Factura Electrónica (Modelo - Excel):</label>
+        <input type="file" id="excelFile1" accept=".xlsx,.xls">
+      </div>
+
+      <div class="upload-box">
+        <label for="excelFile2">Proforma de Venta (Maestro - Excel):</label>
+        <input type="file" id="excelFile2" accept=".xlsx,.xls">
+      </div>
+
+      <div class="upload-box">
+        <label for="facturaManual">Número de Factura (manual):</label>
+        <input type="text" id="facturaManual" placeholder="Ej: FF02-00016865">
+      </div>
+
+      <button id="compareBtn">🔍 Comparar Excel</button>
+    </section>
+
+    <!-- Resultados -->
+    <section id="resultSection" class="hidden">
+      <h2>Productos que están en la Proforma pero no en la Factura</h2>
+      <div class="table-container">
+        <table id="resultTable" border="1" cellspacing="0" cellpadding="5">
+          <thead>
+            <tr>
+              <th>COD</th>
+              <th>DESCRIPCIÓN</th>
+              <th>UM</th>
+              <th>PRECIO</th>
+              <th>CANT</th>
+              <th>SUB TOTAL</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="action-buttons hidden">
+        <button id="downloadBtn">Descargar PDF</button>
+        <button id="backBtn">Nueva Comparación</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2025 Primavera Distribuidores S.A.C. Todos los derechos reservados</p>
+  </footer>
+
+  <!-- 📚 Librerías necesarias -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script type="module" src="scripts.js"></script>
+
+  <!-- Modal de conexión -->
+  <div id="conexionModal">
+    <div class="modal-content">
+      <h3 id="modalTitulo">⚠ Conexión Fallida</h3>
+      <p id="modalMensaje">Tu conexión a internet se ha perdido.</p>
+      <button id="recargarBtn">Recargar</button>
+    </div>
+  </div>
+
+  <!-- Toast personalizado -->
+  <div id="toastConexion" style="display:none; position:fixed; bottom:20px; right:20px; 
+      background:#4caf50; color:#fff; padding:12px 20px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.3); z-index:9999;">
+    ✅ Conexión restablecida
+  </div>
+
+
+</body>
+</html>
