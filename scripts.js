@@ -1209,7 +1209,6 @@ async function leerSoloFila1YShapes(file) {
     }
   }
 
-  console.log("🧾 Texto leído (fragmento fila 1 + shapes):", textoTotal.slice(0, 500));
   return textoTotal;
 }
 
@@ -1272,10 +1271,8 @@ document.getElementById("excelFile1").addEventListener("change", async (e) => {
 
     if (numeroDetectado) {
       mostrarFacturaDetectada(numeroDetectado);
-      console.log("✅ Documento detectado:", numeroDetectado);
     } else {
       mostrarFacturaDetectada("");
-      console.warn("⚠️ No se detectó número de factura/boleta/nota.");
     }
   } catch (err) {
     console.error("❌ Error al procesar Excel del documento:", err);
