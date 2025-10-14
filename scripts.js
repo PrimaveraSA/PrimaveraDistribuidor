@@ -11,7 +11,6 @@ const uploadSection = document.querySelector(".upload-section");
 const actionButtons = document.querySelector(".action-buttons");
 const backBtn = document.getElementById("backBtn");
 
-
 let modeloCodes = [];      // Factura - menos productos
 let maestroCodes = [];     // Proforma - más productos
 let clienteData = {};      // Datos del cliente (de Excel maestro)
@@ -19,196 +18,133 @@ let proformaNumber = "";   // e.g. "002-00065088"
 let facturaNumber = "";    // e.g. "FF02-00016865"
 
 // ==========================
+// 🔧 Función global para normalizar códigos (NUMÉRICOS)
+// ==========================
+function normalizeCodigo(v) {
+  if (v === null || v === undefined) return "";
+  let s = String(v).normalize("NFKC");
+  s = s.replace(/[\u200B-\u200F\uFEFF\u00A0"']/g, "");
+  s = s.replace(/[\r\n\t]/g, " ");
+  const m = s.match(/\d+/g);
+  if (!m || m.length === 0) return "";
+  const joined = m.join("");
+  return joined;
+}
+
+// ==========================
 // 🧠 Evento principal de comparación
 // ==========================
 compareBtn.addEventListener("click", async () => {
   const modeloFile = document.getElementById("excelFile1").files[0];
   const maestroFile = document.getElementById("excelFile2").files[0];
-  const facturaInput = document.getElementById("facturaManual"); // ✅ corregido id
+  const facturaInput = document.getElementById("facturaManual");
 
   if (!modeloFile || !maestroFile) {
-    alert("Por favor, selecciona ambos archivos Excel.");
+    showToast("Por favor, selecciona ambos archivos Excel.", "error");
     return;
   }
 
   const modeloData = await extractDataFromExcel(modeloFile);
   const maestroData = await extractDataFromExcel(maestroFile);
+  const modeloText = (modeloData.rawText || (modeloData.rawCells || []).join(" ")).toString();
+  const maestroText = (maestroData.rawText || (maestroData.rawCells || []).join(" ")).toString();
 
-  modeloCodes = modeloData.codes;
-  maestroCodes = maestroData.codes;
+  // Buscar número con prefijo "002"
+  proformaNumber =
+    findNumberByPrefixInText(maestroText, "002") ||
+    findNumberByPrefixInText(modeloText, "002") ||
+    "";
+
+  console.log("Número de proforma detectado automáticamente:", proformaNumber);
+
+  if (!proformaNumber) {
+    showToast("No se detectó número de proforma automáticamente.", "warning");
+  }
+
+  modeloCodes = modeloData.codes || [];
+  maestroCodes = maestroData.codes || [];
   clienteData = maestroData.clienteData || {};
 
-    // ==========================
-    // 💡 Tomar número de factura desde el input
-    // ==========================
-    facturaNumber = facturaInput.value.trim(); // ✅ sin const/let
-    if (!facturaNumber) {
-    alert("Por favor, ingresa el número de factura.");
+  facturaNumber = facturaInput.value.trim();
+  if (!facturaNumber) {
+    showToast("Por favor, ingresa el número de factura.", "error");
     return;
+  }
+
+  rellenarFormularioCliente(clienteData);
+
+  // (Opcional) versión local de normalización para este scope — NO elimina la global
+  const normalizeLocal = (v) => normalizeCodigo(v);
+
+  // Debug counts
+  console.log("Productos en MODELO (factura):", modeloCodes.length);
+  console.log("Productos en MAESTRO (proforma):", maestroCodes.length);
+
+  // ==========================
+  // 🔹 Detectar duplicados
+  // ==========================
+  detectarDuplicados(modeloCodes, "Factura/Boleta/Nota de Pedido");
+  detectarDuplicados(maestroCodes, "Proforma");
+
+  // 1) Proforma -> Factura (proforma tiene pero la factura NO)
+  const faltantesEnFactura = maestroCodes
+    .filter(code => {
+      const nc = normalizeLocal(code.codigo || code.codigoNorm || "");
+      if (!nc) return false;
+      return !modeloCodes.some(c => normalizeLocal(c.codigo || c.codigoNorm || "") === nc);
+    })
+    .map(c => ({ ...c, _origen: "PROFORMA_SIN_FACTURA" }));
+
+  // 2) Factura -> Proforma (factura tiene pero la proforma NO)
+  const noRegistradosEnProforma = modeloCodes
+    .filter(code => {
+      const nc = normalizeLocal(code.codigo || code.codigoNorm || "");
+      if (!nc) return false;
+      return !maestroCodes.some(c => normalizeLocal(c.codigo || c.codigoNorm || "") === nc);
+    })
+    .map(c => ({ ...c, _origen: "FACTURA_SIN_PROFORMA" }));
+
+  console.log("faltantesEnFactura:", faltantesEnFactura.length, "noRegistradosEnProforma:", noRegistradosEnProforma.length);
+
+  // Unir y deduplicar por código normalizado
+  const merged = [...faltantesEnFactura, ...noRegistradosEnProforma];
+  const mapByCode = new Map();
+  merged.forEach(item => {
+    const key = normalizeLocal(item.codigo || item.codigoNorm || "");
+    if (!mapByCode.has(key)) mapByCode.set(key, item);
+    else {
+      const existing = mapByCode.get(key);
+      existing._origen = existing._origen === item._origen ? existing._origen : `${existing._origen}|${item._origen}`;
     }
+  });
+  const faltantesTotales = Array.from(mapByCode.values());
 
-  // ==========================
-// 💡 Buscar número de proforma (sigue igual)
-// ==========================
-const modeloText = (modeloData.rawText || (modeloData.rawCells || []).join(" ")).toString();
-const maestroText = (maestroData.rawText || (maestroData.rawCells || []).join(" ")).toString();
+  // Debug final
+  console.log("Faltantes totales (únicos):", faltantesTotales.length);
 
-const normalizeForMatch = (text) => {
-  if (!text && text !== 0) return "";
-  let s = String(text).normalize("NFKC");
-  s = s.replace(/[\u200B-\u200F\uFEFF\u00AD]/g, "");
-  s = s.replace(/\u00A0/g, " ");
-  s = s.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, "");
-  s = s.replace(/\s+/g, " ").trim();
-  return s;
-};
+  // Mostrar resultados
+  if (faltantesTotales.length === 0) {
+    showToast("No hay productos faltantes o inesperados.", "success");
+  }
 
-const escapeForRe = (s) => String(s).replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+  mostrarResultados(faltantesTotales, {
+    facturaNumber,
+    proformaNumber,
+    clienteData,
+    duplicados: [] // Ya se muestra el toast desde detectarDuplicados()
+  });
 
-function findNumberByPrefixInText(rawText, prefix) {
-  if (!rawText) return null;
-  const txt = normalizeForMatch(rawText).toUpperCase();
-  const p = escapeForRe(prefix.toUpperCase());
-  const re = new RegExp("\\b(" + p + ")[-\\s\\/\\:\\u2013\\u2014]?0*(\\d{3,})\\b", "i");
-  const m = txt.match(re);
-  if (m) return `${m[1].toUpperCase()}-${m[2]}`;
-  return "";
-}
-
-proformaNumber =
-  findNumberByPrefixInText(maestroText, "002") ||
-  findNumberByPrefixInText(modeloText, "002") ||
-  "";
-
-console.log("Factura (manual):", facturaNumber);
-console.log("Proforma detectada:", proformaNumber || "(no detectada)");
-
-    // Función para limpiar códigos: deja solo dígitos
-    function normalizeCodigo(codigo) {
-    return String(codigo).replace(/\D/g, "");
-    }
-
-  // ==========================
-  // 🔎 Comparar códigos
-  // ==========================
-    const faltantes = maestroCodes.filter(
-        (code) => !modeloCodes.some(
-            (c) => normalizeCodigo(c.codigo) === normalizeCodigo(code.codigo)
-        )
-    );
-
-
-  mostrarResultados(faltantes);
+  // (opcional) desplazar vista a resultados
+  uploadSection.style.display = "none";
+  resultSection.classList.remove("hidden");
+  actionButtons.classList.remove("hidden");
 });
 
 
-// ==========================
-// 📊 Extraer datos desde Excel (seguro, escanea todas las hojas)
-// ==========================
-async function extractDataFromExcel(file) {
-  const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data, { type: "array" });
-
-  // clean function
-  const cleanVal = (val) => (val || val === 0 ? String(val).replace(/^:\s*/, "").trim() : "");
-
-  // clienteData extraído desde la primera hoja (igual que antes)
-  const firstSheetName = workbook.SheetNames[0];
-  const firstSheet = workbook.Sheets[firstSheetName];
-  const firstJson = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
-  const readHI = (rowIndex, jsonData) => {
-    const valH = cleanVal(jsonData[rowIndex]?.[7]);
-    const valI = cleanVal(jsonData[rowIndex]?.[8]);
-    if (valH && !["EMAIL", "IMAL"].includes(valH.toUpperCase())) return valH;
-    if (valI && !["EMAIL", "IMAL"].includes(valI.toUpperCase())) return valI;
-    return "";
-  };
-  const clienteDataLocal = {
-    razon: cleanVal(firstJson[2]?.[3]),
-    dni: cleanVal(firstJson[3]?.[3]),
-    direccion: cleanVal(firstJson[4]?.[3]),
-    referencia: cleanVal(firstJson[5]?.[3]),
-    entrega: cleanVal(firstJson[6]?.[3]),
-    contacto: cleanVal(firstJson[7]?.[3]),
-    fecEmision: readHI(2, firstJson),
-    fecEntrega: readHI(4, firstJson),
-    pedido: readHI(5, firstJson)
-  };
-
-  // recorrer todas las hojas para construir rawCells/rawText y cellsInfo, y detectar códigos si hay headers
-  const allRaw = [];
-  const cellsInfo = []; // { sheet, addr, text }
-  const codes = [];
-
-  for (const sheetName of workbook.SheetNames) {
-    const sheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-
-    // recorrer celdas por fila/col
-    for (let r = 0; r < jsonData.length; r++) {
-      const row = jsonData[r] || [];
-      for (let c = 0; c < row.length; c++) {
-        const raw = cleanVal(row[c]);
-        if (raw !== "") {
-          allRaw.push(raw);
-          // también guardamos dirección aproximada (fila/col) para debug; addr opcional
-          cellsInfo.push({ sheet: sheetName, addr: `R${r+1}C${c+1}`, text: raw });
-        }
-      }
-    }
-
-    // intentar extraer códigos si la hoja contiene la estructura de tabla (encabezado en fila 11 -> índice 10)
-    const headersRow = jsonData[10] || [];
-    const headers = headersRow.map(h => (h ? String(h).trim().toUpperCase() : ""));
-    if (headers.length && !headers.every(h => h === "")) {
-      const findSafeIndex = (keyword) => headers.findIndex(h => h && h.includes(keyword));
-      const idxCodigo = findSafeIndex("COD");
-      const idxDescripcion = findSafeIndex("DES");
-      const idxUM = findSafeIndex("UM");
-      const idxPrecio = findSafeIndex("PRECIO");
-      const idxCantidad = findSafeIndex("CANT");
-      const idxSubtotal = findSafeIndex("SUB");
-
-      if (idxCodigo >= 0) {
-        for (let i = 11; i < jsonData.length; i++) {
-          const row = jsonData[i];
-          if (!row || row.every(cell => cell === undefined || cell === null || String(cell).trim() === "")) continue;
-          const codigo = cleanVal(row[idxCodigo]);
-          const descripcion = cleanVal(row[idxDescripcion]);
-          const um = cleanVal(row[idxUM]);
-          const precio = cleanVal(row[idxPrecio]);
-          const cantidad = cleanVal(row[idxCantidad]);
-          const subtotal = cleanVal(row[idxSubtotal]);
-          if (codigo) {
-            codes.push({ codigo, descripcion, um, precio, cantidad, subtotal });
-          }
-        }
-      }
-    }
-  }
-
-  const rawText = allRaw.join(" ").replace(/\s+/g, " ").trim();
-
-  return { clienteData: clienteDataLocal, codes, rawCells: allRaw, rawText, cellsInfo };
-}
-
-
-// 🧮 Conversión de unidades a cantidad base
-function recalcularSubtotal(row) {
-  const precio = parseFloat(row.children[3].textContent) || 0;
-  const cantidad = parseFloat(row.children[4].textContent) || 0;
-  const subtotal = precio * cantidad;
-
-  // ✅ Mostrar sin .00 si es entero
-  row.children[5].textContent = Number.isInteger(subtotal)
-    ? subtotal.toString()
-    : subtotal.toFixed(2);
-}
 
 // ==========================
 // 📝 Mostrar resultados en tabla + bloque
 // ==========================
-
 function mostrarResultados(faltantes) {
   resultTable.innerHTML = "";
   if (faltantes.length === 0) {
@@ -218,7 +154,8 @@ function mostrarResultados(faltantes) {
       const row = document.createElement("tr");
 
       const tdCodigo = document.createElement("td");
-      tdCodigo.textContent = item.codigo;
+      // Mostrar preferentemente el código normalizado (solo números)
+      tdCodigo.textContent = item.codigoNorm || normalizeCodigo(item.codigo) || item.codigo || "";
       makeCellLocked(tdCodigo);
 
       const tdDescripcion = document.createElement("td");
@@ -244,7 +181,14 @@ function mostrarResultados(faltantes) {
       tdSubtotal.textContent = item.subtotal;
       makeCellLocked(tdSubtotal);
 
-      row.append(tdCodigo, tdDescripcion, tdUM, tdPrecio, tdCantidad, tdSubtotal);
+      const tdAcciones = document.createElement("td");
+      const btnDelete = document.createElement("button");
+      btnDelete.textContent = "X";
+      btnDelete.classList.add("delete-row-btn");
+      btnDelete.addEventListener("click", () => row.remove());
+      tdAcciones.appendChild(btnDelete);
+
+      row.append(tdCodigo, tdDescripcion, tdUM, tdPrecio, tdCantidad, tdSubtotal, tdAcciones);
       resultTable.appendChild(row);
     });
   }
@@ -252,6 +196,224 @@ function mostrarResultados(faltantes) {
   resultSection.classList.remove("hidden");
   downloadBtn.classList.remove("hidden");
 }
+
+
+// ==========================
+// 📊 Extraer datos desde Excel
+// ==========================
+async function extractDataFromExcel(file) {
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data, { type: "array" });
+
+  const cleanVal = (val) => (val || val === 0 ? String(val).replace(/^:\s*/, "").trim() : "");
+
+  const validarFecha = (val) => {
+    const regexFecha = /^\d{2}\/\d{2}\/\d{4}$/;
+    return regexFecha.test(val) ? val : "";
+  };
+
+  // ===============================
+  // 📌 1️⃣ CLIENTE DATA AUTOMÁTICO (Hoja 1)
+  // ===============================
+  const firstSheetName = workbook.SheetNames[0];
+  const firstSheet = workbook.Sheets[firstSheetName];
+  const firstJson = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
+
+  // --- Leer filas base ---
+  const fila3 = cleanVal(firstJson[2]?.[3]);
+  const fila4 = cleanVal(firstJson[3]?.[3]);
+  const fila5 = cleanVal(firstJson[4]?.[3]);
+  const fila6 = cleanVal(firstJson[5]?.[3]);
+  const fila7 = cleanVal(firstJson[6]?.[3]);
+  const fila8 = cleanVal(firstJson[7]?.[3]);
+  const fila9 = cleanVal(firstJson[8]?.[3]);
+
+  const regexRucDni = /^\d{8}(\d{3})?$/; // 8 o 11 dígitos
+
+  let razon = fila3;
+  let dni = fila4;
+  let direccion = fila5;
+  let referencia = fila6;
+  let entrega = fila7;
+  let contacto = fila8;
+
+  // 👉 Si fila4 NO es RUC/DNI, se concatena a razón y se corre todo
+  if (fila4 && !regexRucDni.test(fila4)) {
+    razon = `${fila3} ${fila4}`.trim();
+    dni = fila5;
+    direccion = fila6;
+    referencia = fila7;
+    entrega = fila8;
+    contacto = fila9;
+  }
+
+  // --- Extraer fechas y pedido ---
+  const readHI = (rowIndex, jsonData) => {
+    const valH = cleanVal(jsonData[rowIndex]?.[7]);
+    const valI = cleanVal(jsonData[rowIndex]?.[8]);
+    if (valH && !["EMAIL", "IMAL"].includes(valH.toUpperCase())) return valH;
+    if (valI && !["EMAIL", "IMAL"].includes(valI.toUpperCase())) return valI;
+    return "";
+  };
+
+  const fecEmision = validarFecha(readHI(2, firstJson));
+  const fecEntrega = validarFecha(readHI(4, firstJson));
+  const pedido = readHI(5, firstJson);
+
+  const clienteDataLocal = {
+    razon,
+    dni,
+    direccion,
+    referencia,
+    entrega,
+    contacto,
+    fecEmision,
+    fecEntrega,
+    pedido
+  };
+
+  // ===============================
+  // 📌 2️⃣ PRODUCTOS (todas las hojas)
+  // ===============================
+  const allRaw = [];
+  const cellsInfo = [];
+  const codes = [];
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+    // Guardar texto bruto y coords
+    for (let r = 0; r < jsonData.length; r++) {
+      const row = jsonData[r] || [];
+      for (let c = 0; c < row.length; c++) {
+        const raw = cleanVal(row[c]);
+        if (raw !== "") {
+          allRaw.push(raw);
+          cellsInfo.push({ sheet: sheetName, addr: `R${r + 1}C${c + 1}`, text: raw });
+        }
+      }
+    }
+
+    // Detectar fila de encabezado de tabla
+    let headerIndex = 8;
+    for (let r = 6; r <= 12 && r < jsonData.length; r++) {
+      const row = (jsonData[r] || []).map(h => (h ? String(h).trim().toUpperCase() : ""));
+      const hasCod = row.some(h => /^(#|COD|CÓD|CÓDIGO|CODIGO)$/.test(h) || /COD/.test(h));
+      const hasDes = row.some(h => /DESCRIP|DESCRIPCIÓN|DESCRIPCION|DES/.test(h));
+      if (hasCod && hasDes) { headerIndex = r; break; }
+    }
+
+    const headersRow = jsonData[headerIndex] || [];
+    const headers = headersRow.map(h => (h ? String(h).trim().toUpperCase() : ""));
+    const findSafeIndex = (keyword) => headers.findIndex(h => h && h.includes(keyword));
+    const idxCodigo = findSafeIndex("COD");
+    const idxDescripcion = findSafeIndex("DES");
+    const idxUM = findSafeIndex("UM");
+    const idxPrecio = findSafeIndex("PRECIO");
+    const idxCantidad = findSafeIndex("CANT");
+    const idxSubtotal = findSafeIndex("SUB");
+
+    if (idxCodigo >= 0) {
+      for (let i = headerIndex + 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!row || row.every(cell => cell === undefined || cell === null || String(cell).trim() === "")) continue;
+        const codigoRaw = cleanVal(row[idxCodigo]);
+        const descripcion = idxDescripcion >= 0 ? cleanVal(row[idxDescripcion]) : "";
+        const um = idxUM >= 0 ? cleanVal(row[idxUM]) : "";
+        const precio = idxPrecio >= 0 ? cleanVal(row[idxPrecio]) : "";
+        const cantidad = idxCantidad >= 0 ? cleanVal(row[idxCantidad]) : "";
+        const subtotal = idxSubtotal >= 0 ? cleanVal(row[idxSubtotal]) : "";
+        if (codigoRaw) {
+          const codigoNorm = normalizeCodigo(codigoRaw);
+          codes.push({
+            codigo: codigoRaw,
+            codigoNorm,
+            descripcion,
+            um,
+            precio,
+            cantidad,
+            subtotal,
+            sheet: sheetName,
+            rowIndex: i + 1
+          });
+        }
+      }
+    }
+  }
+
+  const rawText = allRaw.join(" ").replace(/\s+/g, " ").trim();
+  return { clienteData: clienteDataLocal, codes, rawCells: allRaw, rawText, cellsInfo };
+}
+
+
+// ==========================
+// 📝 Rellenar formulario con los datos del cliente extraídos del Excel
+// ==========================
+function rellenarFormularioCliente(clienteData) {
+  if (!clienteData) return;
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    // 🧠 Valida formato de fecha si el campo es de fecha
+    if (id === "clienteFecEmision" || id === "clienteFecEntrega") {
+      const regexFecha = /^\d{2}\/\d{2}\/\d{4}$/;
+      if (val && regexFecha.test(val)) {
+        el.value = val;
+      } else {
+        el.value = ""; // limpia si no es fecha válida
+      }
+    } else {
+      el.value = val || "";
+    }
+  };
+
+  setVal("clienteRazon", clienteData.razon);
+  setVal("clienteDNI", clienteData.dni);
+  setVal("clienteDireccion", clienteData.direccion);
+  setVal("clienteReferencia", clienteData.referencia);
+  setVal("clienteFecEmision", clienteData.fecEmision);
+  setVal("clienteFecEntrega", clienteData.fecEntrega);
+}
+
+// ==========================
+// ⏰ Validación dinámica en los inputs de fecha
+// ==========================
+function validarFormatoFecha(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  input.addEventListener("blur", () => {
+    const valor = input.value.trim();
+    const regexFecha = /^\d{2}\/\d{2}\/\d{4}$/;
+
+    if (valor && !regexFecha.test(valor)) {
+      input.value = "";
+    }
+  });
+}
+
+
+// Activar validación en ambos campos de fecha
+validarFormatoFecha("clienteFecEmision");
+validarFormatoFecha("clienteFecEntrega");
+
+
+// 🧮 Conversión de unidades a cantidad base
+function recalcularSubtotal(row) {
+  const precio = parseFloat(row.children[3].textContent) || 0;
+  const cantidad = parseFloat(row.children[4].textContent) || 0;
+  const subtotal = precio * cantidad;
+
+  // ✅ Mostrar sin .00 si es entero
+  row.children[5].textContent = Number.isInteger(subtotal)
+    ? subtotal.toString()
+    : subtotal.toFixed(2);
+}
+
+
 
 // ---------------------------
 // Estado global de desbloqueo
@@ -394,26 +556,28 @@ function formatearCodigo(contador) {
   return `${prefijo}-${numeroFormateado}`;
 }
 
-// ==========================
-// ✨ Ejemplo de uso
-// ==========================
-async function generarCodigoPDF() {
-  const nuevoContador = await incrementarContador();
-  const codigoFormateado = formatearCodigo(nuevoContador);
-
-  console.log("Nuevo código PDF:", codigoFormateado);
-  return codigoFormateado;
-}
-
-
 // Evento de descarga PDF
 downloadBtn.addEventListener("click", async () => {
   try {
+
+    const input = document.getElementById("proformaManual");
+    proformaNumber = input?.value?.trim() || proformaNumber;
+
+    const inputFactura = document.getElementById("facturaManual");
+    facturaNumber = inputFactura?.value?.trim() || facturaNumber;
+
+    // Validar que ya haya cargado la proforma
+    if (!proformaNumber) {
+      alert("No se ha detectado número de proforma. Primero usa 'Comparar Excel'.");
+      return;
+    }
+
     // ⚡ Obtener contador global
     const contadorGlobal = await incrementarContador();
     const codigoPDF = formatearCodigo(contadorGlobal);
 
     const { jsPDF } = window.jspdf;
+    
     const doc = new jsPDF("p", "mm", "a4");
 
     const PAGE_WIDTH = 210;
@@ -422,19 +586,18 @@ downloadBtn.addEventListener("click", async () => {
     const headerTop = 15;
 
     // === Logo
-    let logoImg = null;
     try {
       const logoUrl = "img/logo.jpg";
       const blob = await fetch(logoUrl).then(r => r.blob());
-      logoImg = await new Promise(resolve => {
-        const reader = new FileReader();
+      const reader = new FileReader();
+      const base64 = await new Promise(resolve => {
         reader.onload = () => resolve(reader.result);
         reader.readAsDataURL(blob);
       });
+      doc.addImage(base64, "JPG", MARGIN_X - 3, headerTop, 26, 26);
     } catch (e) {
       console.warn("Logo no cargado:", e);
     }
-    if (logoImg) doc.addImage(logoImg, "JPG", MARGIN_X - 3, headerTop, 26, 26);
 
     // === Encabezado
     doc.setFont("helvetica", "bold").setFontSize(13);
@@ -483,196 +646,36 @@ downloadBtn.addEventListener("click", async () => {
     doc.setFont("helvetica", "normal").setFontSize(9);
     doc.text(codigoPDF, centerX, numberY, { align: "center" });
 
+    // === TIPO DE DOCUMENTO DINÁMICO
+    const tipoDocumento = document.getElementById("tipoDocumento")?.value || "Factura Electrónica";
+
     // FACTURA
     doc.setFont("helvetica", "bold").setFontSize(10);
-    doc.text("Factura Electrónica", rightX, titleY, { align: "right" });
+    doc.text(tipoDocumento, rightX, titleY, { align: "right" });
     doc.setFont("helvetica", "normal").setFontSize(9);
     doc.text(facturaNumber || "-", rightX, numberY, { align: "right" });
 
-    // Línea roja separadora
+    // Línea separadora
     doc.setDrawColor(190, 30, 45);
     doc.line(MARGIN_X + 5, boxTop + boxHeight - 5, PAGE_WIDTH - MARGIN_X - 5, boxTop + boxHeight - 5);
     doc.setFontSize(8).setTextColor(80, 80, 80);
-    doc.text("Factura ligada directamente a la Proforma indicada arriba.", PAGE_WIDTH / 2, boxTop + boxHeight - 1, { align: "center" });
+    doc.text(`${tipoDocumento} ligada directamente a la Proforma indicada arriba.`, PAGE_WIDTH / 2, boxTop + boxHeight - 1, { align: "center" });
 
     // ========================
-    // PREPROCESADO DEL CLIENTE
+    // DATOS CLIENTE (directo de inputs)
     // ========================
-    const rawC = clienteData ? { ...clienteData } : {};
-    const preferOrder = [
-      "razonLinea1","razonLinea2","razon","nombre","apellido",
-      "dni","dniRuc","ruc",
-      "direccion","referencia","entrega","direccionEntrega",
-      "contacto","telefono","tel","cel","celular",
-      "fecEmision","fecEntrega","pedido"
-    ];
+    const razonSocial = document.getElementById("clienteRazon")?.value.trim() || "—";
+    const dni = document.getElementById("clienteDNI")?.value.trim() || "—";
+    const direccion = document.getElementById("clienteDireccion")?.value.trim() || "—";
+    const referencia = document.getElementById("clienteReferencia")?.value.trim() || "—";
+    const fecEmision = document.getElementById("clienteFecEmision")?.value.trim() || "—";
+    const fecEntrega = document.getElementById("clienteFecEntrega")?.value.trim() || "—";
+    const pedido = document.getElementById("clientePedido")?.value.trim() || "—";
 
-    const items = [];
-    const seen = new Set();
-    for (const k of preferOrder) {
-      if (rawC[k] !== undefined && rawC[k] !== null) {
-        const v = String(rawC[k]).trim();
-        if (v !== "") { items.push({ key: k, value: v }); seen.add(k); }
-      }
-    }
-    // añadir el resto de keys que no estaban en preferOrder
-    for (const k in rawC) {
-      if (!seen.has(k) && rawC[k] != null) {
-        const v = String(rawC[k]).trim();
-        if (v !== "") items.push({ key: k, value: v });
-      }
-    }
-
-    // Target fields
-    const target = {
-      razonLines: [], // array de líneas
-      dni: "",
-      direccion: "",
-      referencia: "",
-      direccionEntrega: "",
-      fecEmision: rawC.fecEmision || rawC.fecEmisión || rawC.fec_emision || "",
-      fecEntrega: rawC.fecEntrega || rawC.fec_entrega || "",
-      pedido: rawC.pedido || ""
-    };
-
-    // Util helpers
-    const extractLongNumber = s => {
-      const m = String(s).match(/\d{8,}/); // 8+ dígitos (DNI 8, RUC 11)
-      return m ? m[0] : null;
-    };
-    
-    const looksLikeAddress = s => {
-      return /\b(CALLE|AV|AVENIDA|JR|JIRON|URB|#|PASA|PSJE|PARAJE)\b/i.test(s) || /#\d+/.test(s);
-    };
-    const looksLikeSchedule = s => {
-      return /\b(AM|PM|HORARIO|ATENCI[ÓO]N|ATENCION)\b/i.test(s);
-    };
-    const looksLikeDate = s => {
-      return /\b\d{2}\/\d{2}\/\d{4}\b/.test(s) || /\b\d{4}-\d{2}-\d{2}\b/.test(s);
-    };
-
-    // Primer pase: clasificar valores
-    for (const it of items) {
-      const v0 = String(it.value).trim();
-      if (!v0) continue;
-      const v = v0;
-
-      // fechas
-      if (looksLikeDate(v)) {
-        if (!target.fecEmision) target.fecEmision = (v.match(/\d{2}\/\d{2}\/\d{4}/) || [v])[0];
-        else if (!target.fecEntrega) target.fecEntrega = (v.match(/\d{2}\/\d{2}\/\d{4}/) || [v])[0];
-        continue;
-      }
-
-      // número largo (DNI / RUC)
-      const longNum = extractLongNumber(v);
-      if (longNum) {
-        if (!target.dni) {
-          target.dni = longNum;
-          // quitar ese número del string original para ver si queda texto (direccion u otra cosa)
-          const remainder = v.replace(longNum, "").replace(/\s{2,}/g, " ").trim();
-          if (remainder) {
-            // si queda texto y parece dirección -> asignar
-            if (looksLikeAddress(remainder)) {
-              if (!target.direccion) target.direccion = remainder;
-              else if (!target.direccionEntrega) target.direccionEntrega = remainder;
-            } else if (looksLikeSchedule(remainder)) {
-              if (!target.referencia) target.referencia = remainder;
-            } else {
-              // si no parece dirección ni horario, podríamos tratar como referencia o parte del nombre:
-              // si el resto es totalmente alfabetico, tratarlo como segunda línea de razón
-              if (/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(remainder)) {
-                target.razonLines.push(remainder);
-              } else {
-                if (!target.referencia) target.referencia = remainder;
-                else if (!target.direccion) target.direccion = remainder;
-              }
-            }
-          }
-        } else {
-          // ya tenemos dni, entonces este número probablemente es parte de otra cosa (ej: referencia con números)
-          // si parece dirección, asignarla
-          if (looksLikeAddress(v)) {
-            if (!target.direccion) target.direccion = v;
-            else if (!target.direccionEntrega) target.direccionEntrega = v;
-          } else {
-            if (!target.referencia) target.referencia = v;
-          }
-        }
-        continue;
-      }
-
-      // horario / referencia
-      if (looksLikeSchedule(v)) {
-        if (!target.referencia) target.referencia = v;
-        else target.referencia += " / " + v;
-        continue;
-      }
-
-      // direcciones (por palabras clave)
-      if (looksLikeAddress(v)) {
-        if (!target.direccion) target.direccion = v;
-        else if (!target.direccionEntrega) target.direccionEntrega = v;
-        else if (!target.referencia) target.referencia = v;
-        continue;
-      }
-
-      // si es claramente un pedido
-      if (/CORRIENTE|PEDIDO|ORDER|PEDIDO/i.test(v) && !target.pedido) {
-        target.pedido = v;
-        continue;
-      }
-
-      // nombres / razón social: todo lo que quede alfabético y no clasificado
-      if (/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\.\s]+$/.test(v) && v.length > 2) {
-        target.razonLines.push(v);
-        continue;
-      }
-
-      // fallback: si no se clasificó, intentar colocarlo en referencia o direccion según el contenido
-      if (!target.referencia) target.referencia = v;
-      else if (!target.direccion) target.direccion = v;
-      else if (!target.direccionEntrega) target.direccionEntrega = v;
-    }
-
-    // Si no se obtuvieron líneas de razón y existe rawC.razon con palabras, intentar separarlo en 2 líneas:
-    if (target.razonLines.length === 0 && rawC.razon) {
-      const r = String(rawC.razon).trim();
-      // si el final es una sola palabra (ej. "EMPERATRIZ"), dividir la última palabra en segunda línea
-      const m = r.match(/(.+)\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,})$/);
-      if (m) {
-        target.razonLines.push(m[1].trim());
-        target.razonLines.push(m[2].trim());
-      } else {
-        target.razonLines.push(r);
-      }
-    }
-
-    // Normalizar: si hay >2 líneas, unir las extras en la primera línea (según diseño)
-    if (target.razonLines.length > 2) {
-      const first = target.razonLines.slice(0, target.razonLines.length - 1).join(" ");
-      const last = target.razonLines[target.razonLines.length - 1];
-      target.razonLines = [first, last];
-    }
-
-    // Si no encontramos dni pero hay campos comunes (ej: rawC.dni está no vacío y alfabético), intentar extraer dígitos ahí
-    if (!target.dni && rawC.dni) {
-      const maybe = extractLongNumber(String(rawC.dni));
-      if (maybe) target.dni = maybe;
-    }
-
-    // Limpieza final: si dirección está vacía pero referencia contiene la dirección, moverla
-    if (!target.direccion && target.referencia && looksLikeAddress(target.referencia)) {
-      target.direccion = target.referencia;
-      target.referencia = "";
-    }
-
-    // =========================
-    // === Cuadro de datos del cliente (impresión usando target)
-    // =========================
+    // === Cuadro de datos del cliente
     const topBox = boxTop + boxHeight + 8;
     const headerHeight = 7;
-    const boxHeightCliente = 36;
+    const boxHeightCliente = 30;
 
     doc.setFillColor(200, 0, 0);
     doc.rect(MARGIN_X, topBox, CONTENT_WIDTH, headerHeight, "F");
@@ -685,100 +688,45 @@ downloadBtn.addEventListener("click", async () => {
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(7.2);
 
-    // coordenadas y cálculo de espacios
     let yPos = topBox + 10;
     const leftClienteX = MARGIN_X + 4;
     const leftValueX = leftClienteX + 28;
     const rightClienteX = MARGIN_X + Math.round(CONTENT_WIDTH * 0.62);
     const spacing = 4;
 
-    // =========================
-    // Función auxiliar para limpiar campos y evitar duplicados
-    // =========================
-    function limpiarCampo(valor, comparaciones = []) {
-      if (!valor || valor.toString().trim() === "") return "—";
-      const limpio = valor.toString().trim();
-      for (const cmp of comparaciones) {
-        if (cmp && limpio.toUpperCase() === cmp.toString().trim().toUpperCase()) {
-          return "—";
-        }
-      }
-      return limpio;
-    }
-
-    // =========================
-    // Preparar valores ya filtrados (pedido primero 🔥)
-    // =========================
-    const razonLinesOriginal = target.razonLines && target.razonLines.length ? target.razonLines : [];
-    const razonTexto = razonLinesOriginal.join(" ").trim() || "—";
-    const dni = limpiarCampo(target.dni);
-    const direccion = limpiarCampo(target.direccion);
-    const pedido = limpiarCampo(target.pedido); // 👉 prioridad
-    const referencia = limpiarCampo(target.referencia, [pedido]); // 👉 evita duplicar pedido
-    const direccionEntrega = limpiarCampo(target.direccionEntrega);
-    const fecEmision = limpiarCampo(target.fecEmision);
-    const fecEntrega = limpiarCampo(target.fecEntrega);
-
-    // =========================
-    // RAZON SOCIAL (1 o 2 líneas)
-    // =========================
+    // RAZÓN SOCIAL
     doc.setFont("helvetica", "bold");
     doc.text("RAZON SOCIAL :", leftClienteX, yPos);
     doc.setFont("helvetica", "normal");
+    const razonLines = doc.splitTextToSize(razonSocial, Math.round(CONTENT_WIDTH * 0.62) - 30);
+    doc.text(razonLines, leftValueX, yPos);
+    yPos += spacing * razonLines.length;
 
-    if (razonLinesOriginal.length >= 2) {
-      doc.text(razonLinesOriginal, leftValueX, yPos);
-      yPos += spacing * razonLinesOriginal.length;
-    } else {
-      const razonPrinted = doc.splitTextToSize(razonTexto, Math.round(CONTENT_WIDTH * 0.62) - 30);
-      doc.text(razonPrinted, leftValueX, yPos);
-      yPos += spacing * razonPrinted.length;
-    }
-
-    // =========================
     // DNI / RUC
-    // =========================
     doc.setFont("helvetica", "bold");
     doc.text("DNI/RUC :", leftClienteX, yPos);
     doc.setFont("helvetica", "normal");
     doc.text(dni, leftValueX, yPos);
     yPos += spacing;
 
-    // =========================
-    // DIRECCIÓN PRINCIPAL
-    // =========================
+    // DIRECCIÓN
     doc.setFont("helvetica", "bold");
     doc.text("DIRECCIÓN :", leftClienteX, yPos);
     doc.setFont("helvetica", "normal");
-    const direccionLines = doc.splitTextToSize(direccion, Math.round(CONTENT_WIDTH * 0.62) - 30);
-    doc.text(direccionLines, leftValueX, yPos);
-    yPos += spacing * direccionLines.length;
+    const dirLines = doc.splitTextToSize(direccion, Math.round(CONTENT_WIDTH * 0.62) - 30);
+    doc.text(dirLines, leftValueX, yPos);
+    yPos += spacing * dirLines.length;
 
-    // =========================
     // REFERENCIA
-    // =========================
     doc.setFont("helvetica", "bold");
     doc.text("REFERENCIA :", leftClienteX, yPos);
     doc.setFont("helvetica", "normal");
-    const referenciaLines = doc.splitTextToSize(referencia, Math.round(CONTENT_WIDTH * 0.62) - 30);
-    doc.text(referenciaLines, leftValueX, yPos);
-    yPos += spacing * referenciaLines.length;
+    const refLines = doc.splitTextToSize(referencia, Math.round(CONTENT_WIDTH * 0.62) - 30);
+    doc.text(refLines, leftValueX, yPos);
+    yPos += spacing * refLines.length;
 
-    // =========================
-    // DIRECCIÓN ENTREGA
-    // =========================
-    doc.setFont("helvetica", "bold");
-    doc.text("DIREC. ENTREGA :", leftClienteX, yPos);
-    doc.setFont("helvetica", "normal");
-    const direccionEntregaLines = doc.splitTextToSize(direccionEntrega, Math.round(CONTENT_WIDTH * 0.62) - 30);
-    doc.text(direccionEntregaLines, leftValueX, yPos);
-    yPos += spacing * direccionEntregaLines.length;
-
-    // =========================
-    // Lado derecho: fechas + pedido (ajustado hacia la izquierda)
-    // =========================
-    const labelOffset = -10; // ajusta este valor para mover solo las etiquetas
-
+    // Fechas y pedido a la derecha
+    const labelOffset = -10;
     doc.setFont("helvetica", "bold");
     doc.text("FEC.EMISIÓN :", rightClienteX - labelOffset, topBox + 10);
     doc.setFont("helvetica", "normal");
@@ -793,8 +741,6 @@ downloadBtn.addEventListener("click", async () => {
     doc.text("PEDIDO :", rightClienteX - labelOffset, topBox + 10 + spacing * 2);
     doc.setFont("helvetica", "normal");
     doc.text(pedido, rightClienteX + 35, topBox + 10 + spacing * 2);
-
-
 
     // === Tabla productos
     const startTableY = topBox + boxHeightCliente + 8;
@@ -815,7 +761,6 @@ downloadBtn.addEventListener("click", async () => {
     const scale = CONTENT_WIDTH / 180;
     const colWidths = baseWidths.map(w => +(w * scale).toFixed(2));
 
-    // ajuste por redondeo
     const sumCols = colWidths.reduce((a, b) => a + b, 0);
     if (Math.abs(sumCols - CONTENT_WIDTH) > 0.01) {
       const diff = +(CONTENT_WIDTH - sumCols).toFixed(2);
@@ -848,9 +793,7 @@ downloadBtn.addEventListener("click", async () => {
       const val = parseFloat(String(r[6]).replace(/[^0-9.\-]/g, ""));
       if (!isNaN(val)) totalGeneral += val;
     });
-    if (isNaN(totalGeneral)) totalGeneral = 0;
 
-    // === Bloque final
     const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 6 : startTableY + 50;
     const totalBoxHeight = 22;
     doc.setDrawColor(180).setFillColor(255, 255, 255);
@@ -881,14 +824,14 @@ downloadBtn.addEventListener("click", async () => {
     doc.setFontSize(7.5).setTextColor(100, 100, 100);
     doc.text("Primavera Distribuidores S.A.C. agradece su preferencia.", MARGIN_X + 5, finalY + 18);
 
-    const nombreArchivo = `${codigoPDF}.pdf`;
-    doc.save(nombreArchivo);
+    doc.save(`${codigoPDF}.pdf`);
 
   } catch (err) {
     console.error("Error generando PDF:", err);
     alert("Error generando PDF. Revisa la consola.");
   }
 });
+
 
 // ==========================================================
 // 🔠 Número a letras (simple español)
@@ -1070,7 +1013,271 @@ backBtn.addEventListener("click", () => {
   document.getElementById("excelFile1").value = "";
   document.getElementById("excelFile2").value = "";
   document.getElementById("facturaManual").value = "";
+  document.getElementById("proformaManual").value = "";
 
   // (Opcional) Mover scroll arriba del todo
   window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+
+
+function detectarDuplicados(excelData) {
+  // excelData = array de objetos [{COD: '19057', DESCRIPCION: '...', CANT: 2}, ...]
+  let codSet = new Set();
+  let hayDuplicados = false;
+
+  excelData.forEach((fila) => {
+    let cod = String(fila.COD || fila.codigo || fila.codigoNorm || "").trim(); // Normaliza el código
+    if (codSet.has(cod)) {
+      hayDuplicados = true; // detectamos al menos un duplicado
+    } else {
+      codSet.add(cod);
+    }
+  });
+
+  if (hayDuplicados) {
+    // Mostrar toast fijo
+    const toast = document.getElementById("toastDuplicado");
+    if (toast) {
+      toast.style.display = "block";
+      setTimeout(() => {
+        toast.style.display = "none";
+      }, 4000); // desaparece después de 4 segundos
+    }
+  }
+}
+
+// ==========================
+// 🔔 Función de Toast
+// ==========================
+function showToast(message, type = "info") {
+  // Crear div si no existe
+  let toast = document.getElementById("toastDuplicado");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "toastDuplicado";
+    toast.style.position = "fixed";
+    toast.style.bottom = "20px";
+    toast.style.right = "20px";
+    toast.style.padding = "12px 20px";
+    toast.style.borderRadius = "6px";
+    toast.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+    toast.style.color = "#fff";
+    toast.style.zIndex = 9999;
+    toast.style.display = "none";
+    document.body.appendChild(toast);
+  }
+
+  // Colores por tipo
+  switch(type) {
+    case "success": toast.style.background = "#4BB543"; break;
+    case "warning": toast.style.background = "#e7e40b"; break;
+    case "error": toast.style.background = "#e74c3c"; break;
+    default: toast.style.background = "#3498db"; break;
+  }
+
+  toast.textContent = message;
+  toast.style.display = "block";
+
+  // Ocultar después de 4 segundos
+  setTimeout(() => {
+    toast.style.display = "none";
+  }, 4000);
+}
+
+// ==========================
+// 🧹 Normalización de texto
+// ==========================
+function normalizeForMatch(text) {
+  if (!text && text !== 0) return "";
+  let s = String(text).normalize("NFKC");
+  s = s.replace(/[\u200B-\u200F\uFEFF\u00AD]/g, ""); // invisibles
+  s = s.replace(/\u00A0/g, " "); // espacios duros
+  s = s.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, ""); // control chars
+  s = s.replace(/\s+/g, " ").trim(); // espacios extra
+  return s;
+}
+
+function escapeForRe(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// ==========================
+// 🔍 Buscar número de proforma
+// ==========================
+function findNumberByPrefixInText(rawText, prefix = "002") {
+  if (!rawText) return "";
+
+  const txt = normalizeForMatch(rawText).toUpperCase();
+  const p = escapeForRe(prefix.toUpperCase());
+
+  const re = new RegExp(
+    [
+      `(?:PROFORMA\\s*(?:DE)?\\s*(?:VENTA)?\\s*)?`, // opcional
+      `(?:N[°º]|NUM(?:ERO)?|NRO)?`,                 // "N°" o "NUMERO"
+      `\\s*[:#-\\s]*`,                             // separadores
+      `(${p}|00\\d)`,                              // prefijo (002, 003, etc.)
+      `[-\\s:/\\\\]*`,                             // separadores
+      `(\\d{5,8})`                                 // parte numérica
+    ].join(""),
+    "i"
+  );
+
+  const m = txt.match(re);
+  if (m) {
+    const parte1 = m[1].toUpperCase();
+    const parte2 = m[2].padStart(8, "0");
+    return `${parte1}-${parte2}`;
+  }
+
+  // fallback simple
+  const re2 = new RegExp(`\\b(${p})[-\\s:/\\\\]*(\\d{5,8})\\b`, "i");
+  const m2 = txt.match(re2);
+  if (m2) return `${m2[1].toUpperCase()}-${m2[2].padStart(8, "0")}`;
+
+  return "";
+}
+
+// ==========================
+// 🪄 Mostrar número detectado
+// ==========================
+function mostrarProformaDetectada(numero) {
+  const input = document.getElementById("proformaManual");
+  if (input) {
+    input.value = numero || "";
+    proformaNumber = numero || "";
+  }
+}
+
+document.getElementById("proformaManual").addEventListener("input", (e) => {
+  proformaNumber = e.target.value.trim();
+});
+
+// ==========================
+// 📂 Detectar proforma al subir Excel
+// ==========================
+document.getElementById("excelFile2").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const textoExcel = await leerSoloFila1YShapes(file);
+
+    const numeroDetectado = findNumberByPrefixInText(textoExcel, "002") || "";
+
+    if (numeroDetectado) {
+      mostrarProformaDetectada(numeroDetectado);
+    } else {
+      mostrarProformaDetectada("");
+    }
+  } catch (err) {
+    console.error("❌ Error al procesar Excel de proforma:", err);
+  }
+});
+
+// ==========================
+// 📘 Leer SOLO FILA 1 + Cuadros de texto (shapes)
+// ==========================
+async function leerSoloFila1YShapes(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(arrayBuffer);
+  let textoTotal = "";
+
+  // 1️⃣ Leer solo la fila 1 de cada hoja
+  const data = new Uint8Array(arrayBuffer);
+  const workbook = XLSX.read(data, { type: "array" });
+
+  workbook.SheetNames.forEach((nombreHoja) => {
+    const hoja = workbook.Sheets[nombreHoja];
+    const json = XLSX.utils.sheet_to_json(hoja, { header: 1 });
+    if (json.length > 0 && json[0].length > 0) {
+      textoTotal += json[0].join(" ") + " ";
+    }
+  });
+
+  // 2️⃣ Leer cuadros de texto (shapes)
+  const drawingFiles = Object.keys(zip.files).filter(f => f.match(/xl\/drawings\/drawing\d+\.xml$/));
+  for (const fileName of drawingFiles) {
+    try {
+      const xmlText = await zip.file(fileName).async("text");
+      const shapeTexts = Array.from(xmlText.matchAll(/<a:t[^>]*>([^<]+)<\/a:t>/g))
+        .map(m => m[1])
+        .join(" ");
+      textoTotal += " " + shapeTexts;
+    } catch (err) {
+      console.warn("⚠ No se pudo leer shape:", fileName, err);
+    }
+  }
+
+  console.log("🧾 Texto leído (fragmento fila 1 + shapes):", textoTotal.slice(0, 500));
+  return textoTotal;
+}
+
+
+// ==========================
+// 🔍 Buscar número de factura/boleta/NotaPedido
+// ==========================
+
+function findFacturaNumber(rawText) {
+  if (!rawText) return "";
+
+  const txt = normalizeForMatch(rawText).toUpperCase();
+
+  // Patrones de detección
+  const patrones = [
+    /(BV0\d)[-\s:/\\]*(\d{5,8})/,  // Boleta BV02-00042050
+    /(FF0\d)[-\s:/\\]*(\d{5,8})/,  // Factura FF02-00016865
+    /\b(2)[-\s:/\\]*(\d{5,8})\b/   // Nota de pedido 2-00004816
+  ];
+
+  for (const re of patrones) {
+    const m = txt.match(re);
+    if (m) {
+      const prefijo = m[1].toUpperCase();
+      const numero = m[2].padStart(8, "0");
+      return `${prefijo}-${numero}`;
+    }
+  }
+
+  return "";
+}
+
+// ==========================
+// 🪄 Mostrar número detectado
+// ==========================
+function mostrarFacturaDetectada(numero) {
+  const input = document.getElementById("facturaManual");
+  if (input) {
+    input.value = numero || "";
+    facturaNumber = numero || "";
+  }
+}
+
+// 🖊 Si el usuario edita manualmente
+document.getElementById("facturaManual").addEventListener("input", (e) => {
+  facturaNumber = e.target.value.trim();
+});
+
+// ==========================
+// 📂 Detectar factura/boleta/nota al subir Excel
+// ==========================
+document.getElementById("excelFile1").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const textoExcel = await leerSoloFila1YShapes(file);
+
+    const numeroDetectado = findFacturaNumber(textoExcel) || "";
+
+    if (numeroDetectado) {
+      mostrarFacturaDetectada(numeroDetectado);
+      console.log("✅ Documento detectado:", numeroDetectado);
+    } else {
+      mostrarFacturaDetectada("");
+      console.warn("⚠️ No se detectó número de factura/boleta/nota.");
+    }
+  } catch (err) {
+    console.error("❌ Error al procesar Excel del documento:", err);
+  }
 });

@@ -130,6 +130,32 @@ main {
 
 /* ===== Inputs ===== */
 input[type="file"],
+#proformaManual {
+  background: #2a2a2a;
+  border: 1px solid rgba(255, 152, 0, 0.5);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  color: #f5f5f5;
+  font-size: 0.95rem;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+
+input[type="file"]:hover,
+#proformaManual:hover {
+  border-color: #ffa94d;
+  background: #333;
+}
+
+input[type="file"]:focus,
+#proformaManual:focus {
+  border-color: #ffb74d;
+  outline: none;
+  background: #353535;
+}
+
+input[type="file"],
 #facturaManual {
   background: #2a2a2a;
   border: 1px solid rgba(255, 152, 0, 0.5);
@@ -193,25 +219,27 @@ button:hover {
   background-color: #ffa733;
 }
 
-/* ===== Tabla de resultados ===== */
+/* ===== Contenedor de tabla ===== */
 .table-container {
   max-width: 95%;
+  min-height: 300px; /* <- asegura que la tabla nunca colapse */
   overflow-x: auto;
-  margin-top: 2rem;
+  margin-top: 2.5rem;
   background: #1a1a1a;
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  padding: 0.5rem;
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  padding: 1rem 1.2rem;
 }
 
 /* ===== Tabla ===== */
 table {
   width: 100%;
   border-collapse: collapse;
-  border-radius: 10px;
+  border-radius: 14px;
   overflow: hidden;
-  font-size: 0.95rem;
+  font-size: 1rem; /* más grande */
   color: #eaeaea;
+  letter-spacing: 0.3px;
 }
 
 /* ===== Encabezados ===== */
@@ -220,16 +248,18 @@ th {
   color: #000;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 0.8rem;
-  border-bottom: 2px solid #ff9800;
+  letter-spacing: 0.8px;
+  padding: 1rem 0.8rem; /* más grande */
+  border-bottom: 3px solid #ff9800;
+  text-align: center;
 }
 
 /* ===== Celdas ===== */
 td {
-  padding: 0.75rem;
+  padding: 0.9rem 0.8rem; /* más grande */
   text-align: center;
   border-bottom: 1px solid #333;
+  word-break: break-word; /* evita que texto largo salga */
 }
 
 /* Alternar color de filas */
@@ -243,22 +273,41 @@ tr:nth-child(odd) td {
 
 /* ===== Hover fila ===== */
 tr:hover td {
-  background-color: #2a2a2a;
+  background-color: #2e2e2e;
+  transition: background 0.2s ease;
 }
 
 /* ===== Bordes redondeados suaves ===== */
 table tr:first-child th:first-child {
-  border-top-left-radius: 10px;
+  border-top-left-radius: 14px;
 }
 table tr:first-child th:last-child {
-  border-top-right-radius: 10px;
+  border-top-right-radius: 14px;
 }
 table tr:last-child td:first-child {
-  border-bottom-left-radius: 10px;
+  border-bottom-left-radius: 14px;
 }
 table tr:last-child td:last-child {
-  border-bottom-right-radius: 10px;
+  border-bottom-right-radius: 14px;
 }
+
+/* ===== Botón de eliminar fila ===== */
+.delete-row-btn {
+  background-color: #f44336;
+  color: #fff;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.delete-row-btn:hover {
+  background-color: #e57373;
+  transform: scale(1.1);
+}
+
 
 /* ===== Sección oculta ===== */
 .hidden {
@@ -369,3 +418,129 @@ footer {
 .hidden {
   display: none !important;
 }
+
+/* ===== Contenedor general Datos del Cliente ===== */
+.cliente-info {
+  background: #1b1b1b;
+  border: 1px solid rgba(255, 152, 0, 0.25);
+  border-radius: 16px;
+  padding: 2rem 2rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.8rem 2rem;
+  max-width: 900px;
+  margin: 2rem auto;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.4);
+}
+
+/* ===== Título de sección ===== */
+h2 {
+  grid-column: 1 / -1;
+  color: #ffb74d;
+  font-size: 1.6rem;
+  margin-bottom: 2rem;
+  text-align: left;
+  border-bottom: 3px solid #ff9800;
+  padding-bottom: 0.6rem;
+  font-weight: 600;
+}
+
+/* ===== Cada input y label ===== */
+.cliente-info div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* ===== Labels ===== */
+.cliente-info label {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #ffb74d;
+}
+
+/* ===== Inputs y selects ===== */
+.cliente-info input,
+.cliente-info select {
+  width: 100%;
+  max-width: 100%;
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 152, 0, 0.5);
+  background: #2a2a2a;
+  color: #eaeaea;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  overflow-wrap: break-word;
+}
+
+/* ===== Hover y focus ===== */
+.cliente-info input:hover,
+.cliente-info select:hover {
+  border-color: #ffa94d;
+  background: #333;
+}
+
+.cliente-info input:focus,
+.cliente-info select:focus {
+  border-color: #ffb74d;
+  outline: none;
+  background: #353535;
+  box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+}
+
+/* ===== Placeholder ===== */
+.cliente-info input::placeholder,
+.cliente-info select::placeholder {
+  color: #aaa;
+  font-style: italic;
+}
+
+/* ===== Select con flecha personalizada ===== */
+.cliente-info select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ff9800'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 12px;
+  padding-right: 2rem;
+  cursor: pointer;
+}
+
+/* ===== Fila final de 4 campos ===== */
+.cliente-info .fila-cuatro {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+/* ===== Inputs más pequeños para fila de 4 ===== */
+.cliente-info .fila-cuatro input,
+.cliente-info .fila-cuatro select {
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+/* ===== Responsive ===== */
+@media screen and (max-width: 900px) {
+  .cliente-info {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+  }
+  .cliente-info .fila-cuatro {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .cliente-info .fila-cuatro {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+

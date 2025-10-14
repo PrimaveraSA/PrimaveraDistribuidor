@@ -9,19 +9,18 @@
 <body>
   <header>
     <div class="header-container">
-      <h1>Comparador de Factura Electrónica y Proforma de Venta</h1>
+      <h1>Comparador de Proforma de Venta</h1>
       <nav>
         <a href="Conversion.html" class="nav-btn">Ir a Conversion</a>
       </nav>
     </div>
   </header>
 
-
   <main>
     <!-- Sección de carga -->
     <section class="upload-section">
       <div class="upload-box">
-        <label for="excelFile1">Factura Electrónica (Modelo - Excel):</label>
+        <label for="excelFile1">Factura/Boleta/Nota de Pedido (Modelo - Excel):</label>
         <input type="file" id="excelFile1" accept=".xlsx,.xls">
       </div>
 
@@ -31,8 +30,16 @@
       </div>
 
       <div class="upload-box">
-        <label for="facturaManual">Número de Factura (manual):</label>
+        <label for="facturaManual">Número de Numeración:</label>
         <input type="text" id="facturaManual" placeholder="Ej: FF02-00016865">
+      </div>
+
+      <div class="upload-box">
+        <label for="proformaManual">Número de Proforma Detectado:</label>
+        <input type="text" id="proformaManual" placeholder="Ej: 002-00064678">
+        <small style="display:block; color:#555; font-size:0.85em;">
+          Se completa automáticamente. Puedes corregirlo manualmente si es incorrecto.
+        </small>
       </div>
 
       <button id="compareBtn">🔍 Comparar Excel</button>
@@ -40,7 +47,54 @@
 
     <!-- Resultados -->
     <section id="resultSection" class="hidden">
-      <h2>Productos que están en la Proforma pero no en la Factura</h2>
+      <!-- 📌 NUEVA SECCIÓN: Datos del Cliente -->
+      <h2>Datos del Cliente</h2>
+      <div class="cliente-info">
+        <div>
+          <label for="clienteRazon">Razón Social</label>
+          <input type="text" id="clienteRazon" placeholder="Ej: Empresa S.A.C.">
+        </div>
+        <div>
+          <label for="clienteDNI">DNI / RUC</label>
+          <input type="text" id="clienteDNI" placeholder="Ej: 20481234567">
+        </div>
+        <div>
+          <label for="clienteDireccion">Dirección</label>
+          <input type="text" id="clienteDireccion" placeholder="Ej: Jr. Lima 123">
+        </div>
+        <div>
+          <label for="clienteReferencia">Referencia</label>
+          <input type="text" id="clienteReferencia" placeholder="Ej: Frente al parque">
+        </div>
+        <div>
+          <label for="clienteFecEmision">Fecha de Emisión</label>
+          <input type="text" id="clienteFecEmision" placeholder="dd/mm/aaaa">
+        </div>
+        <div>
+          <label for="clienteFecEntrega">Fecha de Entrega</label>
+          <input type="text" id="clienteFecEntrega" placeholder="dd/mm/aaaa">
+        </div>
+        <div>
+          <label for="clientePedido">Pedido:</label>
+          <select id="clientePedido" class="form-control">
+            <option value="CORRIENTE 2025" selected>CORRIENTE 2025</option>
+            <option value="CAMPAÑA 2025">CAMPAÑA 2025</option>
+            <option value="CORRIENTE 2026">CORRIENTE 2026</option>
+            <option value="CAMPAÑA 2026">CAMPAÑA 2026</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="tipoDocumento">Tipo de Documento</label>
+          <select id="tipoDocumento" class="form-control">
+            <option value="Factura Electrónica" selected>Factura Electrónica</option>
+            <option value="Boleta Electrónica">Boleta Electrónica</option>
+            <option value="Nota de Pedido">Nota de Pedido</option>
+          </select>
+        </div>
+      </div>
+
+      <h2>Productos para Saldo de Proforma</h2>
       <div class="table-container">
         <table id="resultTable" border="1" cellspacing="0" cellpadding="5">
           <thead>
@@ -51,11 +105,13 @@
               <th>PRECIO</th>
               <th>CANT</th>
               <th>SUB TOTAL</th>
+              <th>ACCIONES</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
+
       <div class="action-buttons hidden">
         <button id="downloadBtn">Descargar PDF</button>
         <button id="backBtn">Nueva Comparación</button>
@@ -70,6 +126,7 @@
   <!-- 📚 Librerías necesarias -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
   <script type="module" src="scripts.js"></script>
 
@@ -82,12 +139,16 @@
     </div>
   </div>
 
-  <!-- Toast personalizado -->
+  <!-- Toasts -->
   <div id="toastConexion" style="display:none; position:fixed; bottom:20px; right:20px; 
       background:#4caf50; color:#fff; padding:12px 20px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.3); z-index:9999;">
     ✅ Conexión restablecida
   </div>
 
+  <div id="toastDuplicado" style="display:none; position:fixed; bottom:20px; right:20px; 
+      background:#e7e40b; color:#000000; padding:12px 20px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.3); z-index:9999;">
+    ⚠️ Se detectaron códigos repetidos en el archivo. Por favor, revísalo.
+  </div>
 
 </body>
 </html>
