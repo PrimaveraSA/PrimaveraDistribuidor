@@ -1,4 +1,4 @@
-import { supabase } from "js/DB.js";
+import { supabase } from "../../js/DB.js";
 
 function initGeneradorControlFacturacion() {
 
