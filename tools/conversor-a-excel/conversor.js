@@ -270,7 +270,7 @@ document.querySelectorAll('[data-tool="conversorAExcel"]').forEach(link => {
     `;
 
     try {
-      const res = await fetch("/tools/conversor-a-excel/conversor.html");
+      const res = await fetch("tools/conversor-a-excel/conversor.html");
       if (!res.ok) throw new Error("Error al cargar el archivo HTML");
       const html = await res.text();
 

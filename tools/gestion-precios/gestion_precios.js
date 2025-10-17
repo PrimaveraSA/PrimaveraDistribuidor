@@ -414,7 +414,7 @@ document.querySelectorAll('[data-tool]').forEach(link => {
       `;
 
       // Cargar contenido dentro del card principal
-      fetch('/tools/gestion-precios/gestion_precios.html')
+      fetch('tools/gestion-precios/gestion_precios.html')
         .then(res => res.text())
         .then(html => {
           iframeContainer.innerHTML = html;

@@ -1349,7 +1349,7 @@ document.querySelectorAll('[data-tool="controlFacturacion"]').forEach(link => {
 
     try {
       // 📄 Cargar el HTML de la herramienta
-      const res = await fetch("/tools/control-facturacion/control_facturacion.html");
+      const res = await fetch("tools/control-facturacion/control_facturacion.html");
       if (!res.ok) throw new Error("Error al cargar el archivo HTML");
       const html = await res.text();
 

@@ -71,13 +71,13 @@ document.addEventListener("DOMContentLoaded", () => {
   function generarURL(tool) {
     switch (tool) {
       case "compararExcel":
-        return "/tools/comparar-excel/comparar_excel.html";
+        return "tools/comparar-excel/comparar_excel.html";
       case "controlFacturacion":
-        return "/tools/control-facturacion/control_facturacion.html";
+        return "tools/control-facturacion/control_facturacion.html";
       case "conversorAExcel":
-        return "/tools/conversor-a-excel/conversor.html";
+        return "tools/conversor-a-excel/conversor.html";
       case "gestionPrecios":
-        return "/tools/gestion-precios/gestion_precios.html";
+        return "tools/gestion-precios/gestion_precios.html";
       default:
         return "";
     }
