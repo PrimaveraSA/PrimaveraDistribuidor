@@ -618,7 +618,7 @@ function initGeneradorControlFacturacion() {
 
         // === Logo
         try {
-        const logoUrl = "/img/logo.jpg";
+        const logoUrl = "img/logo.jpg";
         const blob = await fetch(logoUrl).then(r => r.blob());
         const reader = new FileReader();
         const base64 = await new Promise(resolve => {
