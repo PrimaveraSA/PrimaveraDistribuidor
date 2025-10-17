@@ -1,0 +1,223 @@
+/* ============================================================
+   🎨 ESTILOS UNIFICADOS - CONVERSOR PDF → EXCEL (verde Excel)
+   ============================================================ */
+
+:root {
+  --accent: #107C41;
+  --accent-dark: #0b5c30;
+  --accent-light: #d4f2e2;
+  --success: #28a745;
+  --card: #ffffff;
+  --border: #e0e0e0;
+  --shadow: rgba(0, 0, 0, 0.08);
+}
+
+/* === CARD CONTENEDOR === */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 6px 20px var(--shadow);
+  transition: transform 0.3s ease;
+  padding: 0;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+}
+
+/* === LAYOUT PRINCIPAL === */
+.full-width-container {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+.card-body.bg-light {
+  padding: 40px 60px;
+}
+
+/* === DROPZONE === */
+.dropzone {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: var(--accent-light);
+  transition: all 0.3s ease;
+}
+
+.dropzone:hover {
+  background: #f3faf6;
+  box-shadow: 0 0 8px rgba(16, 124, 65, 0.2);
+}
+
+.dropzone input {
+  display: none;
+}
+
+.dz-title {
+  font-weight: 600;
+  font-size: 1.25rem;
+  color: var(--accent-dark);
+}
+
+.dz-subtitle {
+  color: #555;
+}
+
+/* === BOTONES === */
+button.btn {
+  border-radius: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 10px 18px;
+  border: none;
+  transition: all 0.25s ease;
+}
+
+.btn-success {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-success:hover {
+  background: var(--accent-dark);
+  transform: translateY(-2px);
+}
+
+.btn-outline-secondary {
+  border: 1px solid var(--accent);
+  background: #fff;
+  color: var(--accent);
+}
+
+.btn-outline-secondary:hover {
+  background: var(--accent-light);
+  color: var(--accent-dark);
+}
+
+/* === PROGRESS BAR === */
+.progress {
+  height: 12px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* === ALERTAS === */
+.alert {
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.alert-warning {
+  background: #f7f7f7;
+  color: var(--accent-dark);
+}
+
+.alert-success {
+  background: var(--accent-light);
+  color: var(--accent-dark);
+}
+
+/* === INFO SECTION === */
+.info-section {
+  margin-top: 40px;
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.info-section p,
+.info-section span {
+  color: #000 !important;
+  line-height: 1.6;
+}
+
+/* === SECCIÓN DE PASOS === */
+.steps-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 3rem;
+  margin-top: 4rem;
+}
+
+.steps-title {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 0.6rem;
+  line-height: 1.3;
+}
+
+.steps-subtitle {
+  font-size: 1.15rem;
+  color: #000;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.steps-list {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: #000;
+  padding-left: 1.2rem;
+  margin-top: 1rem;
+}
+
+.steps-list li {
+  margin-bottom: 1.4rem;
+  text-align: left;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 1rem 0;
+}
+
+.steps-image {
+  max-width: 520px;
+  min-height: 360px;
+  transform: scale(1.05);
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 992px) {
+  .steps-section {
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .steps-title,
+  .steps-subtitle,
+  .steps-list {
+    text-align: center !important;
+  }
+
+  .steps-image {
+    margin-top: 2rem;
+    transform: none;
+    max-width: 400px;
+  }
+
+  .info-section {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}

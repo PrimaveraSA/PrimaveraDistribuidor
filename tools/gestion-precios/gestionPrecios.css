@@ -1,0 +1,200 @@
+/* ================================
+   ESTILOS - GESTIÓN DE PRECIOS
+   ================================ */
+
+/* === Título principal (fuera del card) === */
+.tool-title {
+  color: #1a237e;
+  font-size: 26px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+/* === Descripción === */
+.card-body p {
+  text-align: center;
+  color: #555;
+  font-size: 15px;
+  margin-bottom: 25px;
+}
+
+/* === Cards de archivos === */
+.file-card {
+  transition: all 0.3s ease;
+  border: 1px solid #dee2e6 !important;
+  background: #ffffff;
+  border-radius: 10px;
+}
+
+.file-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.file-card h6 {
+  color: #0d6efd;
+  font-weight: 600;
+}
+
+.file-card input[type="file"] {
+  cursor: pointer;
+  border: 1px dashed #0d6efd;
+  background-color: #f8fbff;
+  padding: 10px;
+  border-radius: 8px;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.file-card input[type="file"]:hover {
+  background-color: #eef5ff;
+}
+
+/* === Botones === */
+.btn {
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  transition: all 0.25s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.3px;
+}
+
+.btn i { vertical-align: middle; }
+
+.btn-primary {
+  background: linear-gradient(90deg, #0d6efd, #298BAE);
+  border: none;
+  color: #fff;
+}
+.btn-primary:hover {
+  background: linear-gradient(90deg, #0b5ed7, #1e7492);
+}
+
+.btn-success {
+  background: #198754 !important;
+  border: none;
+}
+.btn-success:hover { background: #157347 !important; }
+
+.btn-danger {
+  background: #dc3545 !important;
+  border: none;
+}
+.btn-danger:hover { background: #bb2d3b !important; }
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* === Botón imprimir === */
+#btnImprimir {
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #6c757d;
+  background-color: #ffffff;
+  color: #495057;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#btnImprimir:hover {
+  background-color: #e2e6ea;
+  border-color: #495057;
+  color: #212529;
+}
+
+/* === Tarjetas de estadísticas === */
+.stat-card {
+  background: #fff;
+  border: 1px solid #e1e5eb;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+}
+
+/* === Tabla === */
+.table {
+  border-radius: 10px !important;
+  overflow: hidden;
+  background-color: #fff;
+}
+
+.table thead th {
+  background-color: #298BAE !important;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: #f8faff;
+}
+
+.table-bordered td,
+.table-bordered th {
+  border-color: #dee2e6 !important;
+}
+
+.table td {
+  font-size: 14px;
+  vertical-align: middle;
+  padding: 8px 10px;
+}
+
+/* Alinear solo valores numéricos a la derecha */
+.table td.num-align {
+  text-align: right !important;
+  vertical-align: middle;
+}
+
+/* === Badges === */
+.stock-badge {
+  display: inline-block;
+  min-width: 65px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* Colores de estado */
+.badge-requerida { background: #b6daff; color: #083d77; }        /* azul más visible */
+.badge-verde { background: #198754; color: #fff; }               /* stock ok */
+.badge-rojo { background: #dc3545; color: #fff; }                /* sin stock */
+.badge-naranja { background: #ffb74d; color: #212529; }          /* faltante >0 */
+.badge-amarillo-claro { background: #fff4cc; color: #665c00; }   /* faltante = 0 */
+.badge-azul { background: #0dcaf0; color: #fff; }                /* excedente >0 */
+.badge-celeste-claro { background: #d9f2ff; color: #084298; }    /* excedente = 0 */
+
+/* === Transiciones suaves === */
+.card, .stat-card, .file-card {
+  transition: all 0.25s ease-in-out;
+}
+
+/* === Estados ocultos === */
+.hidden, .d-none { display: none !important; }
+
+/* === Responsivo === */
+@media (max-width: 768px) {
+  .card-body p { font-size: 14px; }
+  .btn { display: block; width: 100%; margin-bottom: 10px; justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  .tool-title { font-size: 22px; }
+}

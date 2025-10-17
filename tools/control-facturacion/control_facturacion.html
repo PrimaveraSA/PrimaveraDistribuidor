@@ -1,0 +1,228 @@
+<link rel="stylesheet" href="/tools/control-facturacion/control_facturacion.css">
+
+<div class="container-fluid mt-4 px-4">
+
+  <!-- CARD PRINCIPAL -->
+  <div class="card border-0 shadow-sm mb-4 upload-section">
+    <div class="card-body">
+
+      <!-- FILA DE ARCHIVOS -->
+      <div class="row g-3 mb-4">
+        <!-- FACTURA / BOLETA / NOTA -->
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center d-flex flex-column justify-content-center">
+              <h6 class="fw-bold text-primary mb-3">
+                <i class="bi bi-file-earmark-excel me-1"></i> Factura / Boleta / Nota de Pedido (Modelo Excel)
+              </h6>
+              <input type="file" id="excelFile1" accept=".xlsx,.xls" class="form-control text-center mb-2">
+              <small class="text-muted">Selecciona un archivo Excel válido</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROFORMA -->
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center d-flex flex-column justify-content-center">
+              <h6 class="fw-bold text-primary mb-3">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Proforma de Venta (Maestro Excel)
+              </h6>
+              <input type="file" id="excelFile2" accept=".xlsx,.xls" class="form-control text-center mb-2">
+              <small class="text-muted">Selecciona un archivo Excel válido</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FILA DE DATOS -->
+      <div class="row g-3">
+        <!-- N° NUMERACIÓN -->
+        <div class="col-md-6">
+          <div class="input-group-custom">
+            <label for="facturaManual">N° Numeración</label>
+            <input type="text" id="facturaManual" placeholder="Ej: FF02-00016865">
+          </div>
+        </div>
+
+        <!-- N° PROFORMA -->
+        <div class="col-md-6">
+          <div class="input-group-custom">
+            <label for="proformaManual">N° Proforma</label>
+            <input type="text" id="proformaManual" placeholder="Ej: 002-00064678">
+          </div>
+        </div>
+
+        <!-- PEDIDO -->
+        <div class="col-md-6">
+          <div class="input-group-custom">
+            <label for="clientePedido">Pedido</label>
+            <select id="clientePedido">
+              <option value="" selected>Seleccionar Pedido</option>
+              <option value="CORRIENTE 2025">CORRIENTE 2025</option>
+              <option value="CAMPAÑA 2025">CAMPAÑA 2025</option>
+              <option value="CORRIENTE 2026">CORRIENTE 2026</option>
+              <option value="CAMPAÑA 2026">CAMPAÑA 2026</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- TIPO Comp -->
+        <div class="col-md-6">
+          <div class="input-group-custom">
+            <label for="tipoDocumento">Tipo Comp.</label>
+            <select id="tipoDocumento">
+              <option value="" selected>Seleccionar Comprobante</option>
+              <option value="Factura Electrónica">Factura Electrónica</option>
+              <option value="Boleta Electrónica">Boleta Electrónica</option>
+              <option value="Nota de Pedido">Nota de Pedido</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- RAZÓN SOCIAL -->
+        <div class="col-md-6">
+          <div class="input-group-custom">
+            <label for="clienteRazon">Razón Social</label>
+            <input type="text" id="clienteRazon" placeholder="Ej: Empresa S.A.C.">
+          </div>
+        </div>
+
+        <!-- DNI / RUC -->
+        <div class="col-md-6">
+          <div class="input-group-custom">
+            <label for="clienteDNI">DNI / RUC</label>
+            <input type="text" id="clienteDNI" placeholder="Ej: 20481234567">
+          </div>
+        </div>
+
+        <!-- DIRECCIÓN -->
+        <div class="col-md-6">
+          <div class="input-group-custom">
+            <label for="clienteDireccion">Dirección</label>
+            <input type="text" id="clienteDireccion" placeholder="Ej: Jr. Lima 123">
+          </div>
+        </div>
+
+        <!-- REFERENCIA -->
+        <div class="col-md-6">
+          <div class="input-group-custom">
+            <label for="clienteReferencia">Referencia</label>
+            <input type="text" id="clienteReferencia" placeholder="Ej: Frente al parque">
+          </div>
+        </div>
+
+        <!-- FEC. EMISIÓN -->
+        <div class="col-md-6">
+          <div class="input-group-custom">
+            <label for="clienteFecEmision">Fec. Emisión</label>
+            <input type="date" id="clienteFecEmision">
+          </div>
+        </div>
+
+        <!-- FEC. ENTREGA -->
+        <div class="col-md-6">
+          <div class="input-group-custom">
+            <label for="clienteFecEntrega">Fec. Entrega</label>
+            <input type="date" id="clienteFecEntrega">
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTONES -->
+      <div class="d-flex justify-content-end gap-2 mt-4 action-buttons">
+        <button id="compareBtn" class="btn btn-primary">
+          <i class="bi bi-search me-1"></i> Comparar Excel
+        </button>
+        <button id="downloadBtn" class="btn btn-success">
+          <i class="bi bi-file-earmark-pdf me-1"></i> Descargar PDF
+        </button>
+        <button id="backBtn" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-counterclockwise me-1"></i> Nueva Comparación
+        </button>
+      </div>
+
+    </div> <!-- /card-body -->
+  </div> <!-- /card upload-section -->
+
+  <!-- CARD DE RESULTADOS -->
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-body">
+
+      <!-- Control superior -->
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        
+        <div class="d-flex align-items-center gap-2">
+          <label for="rowsPerPage2" class="text-muted fw-semibold small mb-0">Mostrar:</label>
+          <select id="rowsPerPage2" class="form-select form-select-sm" style="width: auto;">
+            <option value="10">10 filas</option>
+            <option value="25">25 filas</option>
+            <option value="50" selected>50 filas</option>
+            <option value="100">100 filas</option>
+            <option value="todos">Todos</option>
+          </select>
+        </div>
+
+        <button id="btnImprimir2" class="btn btn-outline-secondary">
+          <i class="bi bi-printer me-1"></i> Imprimir
+        </button>
+
+      </div>
+
+      <!-- TABLA DE RESULTADOS -->
+      <div id="resultSection" class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table id="resultTable" class="table table-striped table-bordered align-middle">
+              <thead class="table-dark">
+                <tr>
+                  <th>COD</th>
+                  <th>DESCRIPCIÓN</th>
+                  <th>UM</th>
+                  <th>PRECIO</th>
+                  <th>CANTIDAD</th>
+                  <th>SUB TOTAL</th>
+                  <th>ACC.</th>
+                </tr>
+              </thead>
+              <tbody id="tablaBody2">
+              <!-- Se llenará dinámicamente -->
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer de tabla -->
+      <div id="tablaFooter2" class="d-flex justify-content-between align-items-center mt-2">
+        <div id="infoPaginacion2" class="text-muted small">
+          Mostrando registros del 0 al 0 de un total de 0
+        </div>
+        <div id="controlPaginacion2" class="btn-group">
+          <button id="btnAnterior2" class="btn btn-outline-secondary btn-sm">Anterior</button>
+          <span id="numerosPaginas2" class="mx-2 text-muted small"></span>
+          <button id="btnSiguiente2" class="btn btn-outline-secondary btn-sm">Siguiente</button>
+        </div>
+      </div>
+
+    </div> <!-- /card-body -->
+  </div> <!-- /card resultados -->
+
+</div> <!-- /container -->
+
+<!-- TOASTS -->
+<div id="toastDuplicado" style="display:none; position:fixed; bottom:20px; right:20px; 
+    background:#e7e40b; color:#000000; padding:12px 20px; border-radius:6px; 
+    box-shadow:0 2px 6px rgba(0,0,0,0.3); z-index:9999;">
+  ⚠️ Se detectaron códigos repetidos en el archivo. Por favor, revísalo.
+</div>
+
+<div id="passwordModal">
+  <div class="modal-content">
+    <h3>🔒 Esta celda está bloqueada</h3>
+    <input type="password" id="modalPassword" placeholder="Ingrese la contraseña">
+    <div class="modal-buttons">
+      <button id="modalCancel">Cancelar</button>
+      <button id="modalConfirm">Confirmar</button>
+    </div>
+  </div>
+</div>

@@ -1,4 +1,4 @@
-// configDB.js
+// DB.js
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
 export const supabaseUrl = "https://pivuyofhmnbtomjizrfg.supabase.co";

@@ -1,0 +1,389 @@
+/* ================================
+   ESTILOS - CONTROL DE Registros
+   ================================ */
+
+/* === Título general === */
+.tool-title {
+  color: #1a237e;
+  font-size: 26px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+/* === Card principal === */
+.upload-section .card-body {
+  background: #fff;
+  border-radius: 10px;
+}
+
+/* === Cards de archivos (subidas de Excel) === */
+.upload-section .card {
+  transition: all 0.3s ease;
+  border: 1px solid #dee2e6 !important;
+  background: #ffffff;
+  border-radius: 10px;
+}
+
+.upload-section .card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.upload-section .card h6 {
+  color: #0d6efd;
+  font-weight: 600;
+}
+
+.upload-section input[type="file"] {
+  cursor: pointer;
+  border: 1px dashed #0d6efd;
+  background-color: #f8fbff;
+  padding: 10px;
+  border-radius: 8px;
+  width: 100%;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.upload-section input[type="file"]:hover {
+  background-color: #eef5ff;
+}
+
+/* === Inputs personalizados === */
+.input-group-custom {
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease-in-out;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.input-group-custom label {
+  background: #e9ecef;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  margin: 0;
+  font-size: 0.95rem;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.input-group-custom input,
+.input-group-custom select {
+  border: none;
+  flex: 1;
+  padding: 0.6rem 0.9rem;
+  background: #ffffff;
+  font-size: 0.95rem;
+  color: #212529;
+}
+
+.input-group-custom input:focus,
+.input-group-custom select:focus {
+  outline: none;
+  background-color: #eef5ff;
+  box-shadow: 0 0 0 2px rgba(13,110,253,0.15);
+}
+
+/* === Botones === */
+.btn {
+  font-weight: 600;
+  padding: 10px 22px;
+  border-radius: 10px;
+  transition: all 0.25s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.3px;
+}
+
+.btn i { vertical-align: middle; }
+
+.btn-primary {
+  background: linear-gradient(90deg, #0d6efd, #2a8bae);
+  border: none;
+  color: #fff;
+}
+.btn-primary:hover {
+  background: linear-gradient(90deg, #0b5ed7, #1e7492);
+  transform: translateY(-2px);
+}
+
+.btn-success {
+  background: linear-gradient(90deg, #198754, #1ca05a);
+  border: none;
+  color: #fff;
+}
+.btn-success:hover {
+  transform: translateY(-2px);
+}
+
+.btn-outline-secondary {
+  background: #fff;
+  border: 1px solid #6c757d;
+  color: #495057;
+  transition: all 0.25s ease-in-out;
+}
+.btn-outline-secondary:hover {
+  background-color: #f0f0f0;
+  color: #212529;
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* === Tabla === */
+.table {
+  border-radius: 10px !important;
+  overflow: hidden;
+  background-color: #fff;
+}
+
+.table thead th {
+  background-color: #298BAE !important;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: #f8faff;
+}
+
+.table-bordered td,
+.table-bordered th {
+  border-color: #dee2e6 !important;
+}
+
+.table td {
+  font-size: 14px;
+  vertical-align: middle;
+  padding: 8px 10px;
+}
+
+/* === Footer de tabla === */
+#tablaFooter2 {
+  background-color: #f9fafb;
+  border-top: 1px solid #dee2e6;
+  padding: 10px 15px;
+  border-radius: 0 0 12px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* === Botón imprimir === */
+#btnImprimir2 {
+  font-size: 0.9rem;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid #6c757d;
+  background-color: #ffffff;
+  color: #495057;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#btnImprimir2:hover {
+  background-color: #e2e6ea;
+  border-color: #495057;
+  color: #212529;
+  transform: translateY(-1px);
+}
+
+/* === Toast (duplicados) === */
+#toastDuplicado {
+  display: none;
+  position: fixed;
+  bottom: 25px;
+  right: 25px;
+  background: #ffc107;
+  color: #000000;
+  padding: 14px 22px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  z-index: 9999;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#toastDuplicado::after {
+  content: "×";
+  font-size: 20px;
+  font-weight: bold;
+  margin-left: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+#toastDuplicado:hover::after {
+  transform: scale(1.3);
+  opacity: 0.7;
+}
+
+.btn-close-professional {
+    display: inline-flex;
+    align-items: center;       
+    justify-content: center;   
+    padding: 6px 12px;         
+    border-radius: 6px;        
+    border: none;
+    background-color: #dc3545; 
+    color: #fff;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    text-align: center;
+}
+
+.btn-close-professional:hover {
+    background-color: #c82333; 
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.btn-close-professional:active {
+    transform: scale(0.95);
+}
+
+.btn-close-professional:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(220,53,69,0.4);
+}
+
+td.actions-cell {
+    text-align: center;     /* centra horizontalmente */
+    vertical-align: middle; /* centra verticalmente */
+}
+
+/* Celdas bloqueadas */
+.locked-cell {
+    background-color: #f8f9fa;
+    color: #6c757d;
+    cursor: not-allowed;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    position: relative;
+    transition: all 0.2s ease-in-out;
+    padding: 6px 8px;
+}
+
+.locked-cell::after {
+    content: "🔒";
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.locked-cell.unlocked {
+    background-color: #e7f5ff;
+    color: #212529;
+    cursor: text;
+    border: 1px solid #66c0ff;
+}
+
+.locked-cell.unlocked::after {
+    content: "🔓";
+    opacity: 0.8;
+}
+
+/* Modal personalizado */
+#passwordModal {
+    display: none; 
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+}
+
+#passwordModal .modal-content {
+    background-color: #fff;
+    padding: 25px 30px;
+    border-radius: 12px;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
+#passwordModal h3 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    color: #0d6efd;
+}
+
+#passwordModal input[type="password"] {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+#passwordModal .modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+#passwordModal button {
+    padding: 8px 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+#passwordModal button#modalCancel {
+    background-color: #e2e6ea;
+    color: #495057;
+}
+
+#passwordModal button#modalCancel:hover {
+    background-color: #d6d8db;
+}
+
+#passwordModal button#modalConfirm {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+#passwordModal button#modalConfirm:hover {
+    background-color: #0b5ed7;
+}
+
+
+/* === Responsivo === */
+@media (max-width: 768px) {
+  .btn { display: block; width: 100%; margin-bottom: 12px; justify-content: center; }
+  .input-group-custom { flex-direction: column; align-items: stretch; }
+  .input-group-custom label { width: 100%; text-align: center; border-bottom: 1px solid #dee2e6; padding: 0.6rem; }
+}
+
+@media (max-width: 480px) {
+  .tool-title { font-size: 24px; }
+  .upload-section .card-body { padding: 20px 15px; }
+  .table td { font-size: 13px; padding: 8px 10px; }
+}
