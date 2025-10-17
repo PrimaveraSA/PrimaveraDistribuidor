@@ -29,17 +29,10 @@ document.addEventListener("DOMContentLoaded", () => {
       e.preventDefault();
 
       const tool = link.getAttribute("data-tool");
-
-      // Cambiar clase activa
       links.forEach(l => l.classList.remove("active"));
       link.classList.add("active");
-
-      // Guardar herramienta activa
       iframeContainer.dataset.currentTool = tool;
 
-      // ==========================
-      // 🏠 Modo INICIO
-      // ==========================
       if (tool === "inicio") {
         if (iframeInicio) iframeInicio.style.display = "block";
         if (iframeContainer) {
@@ -49,9 +42,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // ==========================
-      // 🧰 Modo HERRAMIENTA
-      // ==========================
       if (iframeInicio) iframeInicio.style.display = "none";
       if (iframeContainer) {
         iframeContainer.style.display = "block";
@@ -59,27 +49,19 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const url = generarURL(tool);
-      if (url) {
-        await cargarHTML(url, tool);
-      } else {
-        iframeContainer.innerHTML = "<p>En mantenimiento, seleccione otra herramienta.</p>";
-      }
+      if (url) await cargarHTML(url, tool);
+      else iframeContainer.innerHTML = "<p>En mantenimiento, seleccione otra herramienta.</p>";
     });
   });
 
   // === Generar URL de herramienta según data-tool ===
   function generarURL(tool) {
     switch (tool) {
-      case "compararExcel":
-        return "tools/comparar-excel/comparar_excel.html";
-      case "controlFacturacion":
-        return "tools/control-facturacion/control_facturacion.html";
-      case "conversorAExcel":
-        return "tools/conversor-a-excel/conversor.html";
-      case "gestionPrecios":
-        return "tools/gestion-precios/gestion_precios.html";
-      default:
-        return "";
+      case "compararExcel": return "tools/comparar-excel/comparar_excel.html";
+      case "controlFacturacion": return "tools/control-facturacion/control_facturacion.html";
+      case "conversorAExcel": return "tools/conversor-a-excel/conversor.html";
+      case "gestionPrecios": return "tools/gestion-precios/gestion_precios.html";
+      default: return "";
     }
   }
 
@@ -93,28 +75,19 @@ document.addEventListener("DOMContentLoaded", () => {
       iframeContainer.innerHTML = html;
 
       // 🧹 Limpieza de estados previos
-      delete window.conversorInicializado;
-      delete window._controlFacturacionInicializado;
-      delete window.__ultimoResultado;
-      delete window.gestionPreciosInicializado;
-
-      if (typeof window.cleanupGestionPrecios === "function") window.cleanupGestionPrecios();
-      if (typeof window.cleanupControlFacturacion === "function") window.cleanupControlFacturacion();
-      if (typeof window.cleanupConversorAExcel === "function") window.cleanupConversorAExcel();
+      ["conversorInicializado","_controlFacturacionInicializado","__ultimoResultado","gestionPreciosInicializado"].forEach(k => delete window[k]);
+      ["cleanupGestionPrecios","cleanupControlFacturacion","cleanupConversorAExcel"].forEach(fn => {
+        if (typeof window[fn] === "function") window[fn]();
+      });
 
       // === Reinyectar scripts ===
-      const scripts = iframeContainer.querySelectorAll("script");
-      for (const oldScript of scripts) {
+      iframeContainer.querySelectorAll("script").forEach(oldScript => {
         const newScript = document.createElement("script");
-        if (oldScript.src) {
-          newScript.src = oldScript.src + "?v=" + Date.now();
-          newScript.type = oldScript.type || "text/javascript";
-        } else {
-          newScript.textContent = oldScript.textContent;
-        }
+        if (oldScript.src) newScript.src = oldScript.src + "?v=" + Date.now();
+        else newScript.textContent = oldScript.textContent;
         document.body.appendChild(newScript);
         oldScript.remove();
-      }
+      });
 
       await esperarCargaDOM(tool);
     } catch (err) {
@@ -123,42 +96,35 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // === Esperar DOM ===
   async function esperarCargaDOM(tool) {
-    let intentos = 0;
-    const maxIntentos = 50;
     return new Promise(resolve => {
+      let intentos = 0;
+      const maxIntentos = 50;
       const intervalo = setInterval(() => {
         intentos++;
 
-        if (tool === "gestionPrecios" && typeof initGestionPrecios === "function") {
-          const btn = document.querySelector("#compararBtn");
-          if (btn) {
-            clearInterval(intervalo);
-            initGestionPrecios();
-            resolve(true);
-            return;
-          }
+        // === Inicializar cada herramienta cuando esté lista ===
+        if (tool === "gestionPrecios" && typeof initGestionPrecios === "function" && document.querySelector("#compararBtn")) {
+          clearInterval(intervalo);
+          initGestionPrecios();
+          resolve(true);
+          return;
         }
 
-        if (tool === "controlFacturacion" && typeof initGeneradorControlFacturacion === "function") {
-          const ready = document.querySelector("#generarPDF, #btnComparar, #subirArchivo1");
-          if (ready) {
-            clearInterval(intervalo);
-            initGeneradorControlFacturacion();
-            resolve(true);
-            return;
-          }
+        if (tool === "controlFacturacion" && typeof initGeneradorControlFacturacion === "function" &&
+            document.querySelector("#generarPDF, #btnComparar, #subirArchivo1")) {
+          clearInterval(intervalo);
+          initGeneradorControlFacturacion();
+          resolve(true);
+          return;
         }
 
-        if (tool === "conversorAExcel" && typeof initConversorAExcel === "function") {
-          const ready = document.querySelector("#convertBtn, #fileInput");
-          if (ready) {
-            clearInterval(intervalo);
-            initConversorAExcel();
-            resolve(true);
-            return;
-          }
+        if (tool === "conversorAExcel" && typeof initConversorAExcel === "function" &&
+            document.querySelector("#convertBtn, #fileInput")) {
+          clearInterval(intervalo);
+          initConversorAExcel();
+          resolve(true);
+          return;
         }
 
         if (intentos >= maxIntentos) {

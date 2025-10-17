@@ -145,12 +145,6 @@ function initConversorAExcel() {
             body: formData,
           });
 
-          if (!response.ok) {
-            // Si la API rechaza la solicitud
-            mostrarErrorAPI("⚠️ Límite de conversiones alcanzado. No se puede completar la solicitud.");
-            throw new Error("Error en la conversión: " + response.statusText);
-          }
-
           const result = await response.json();
           const fileUrl = result.Files[0].Url;
           const fileName = result.Files[0].FileName || "ArchivoConvertido.xlsx";
@@ -173,40 +167,6 @@ function initConversorAExcel() {
         }
       });
     }
-
-    // === Función para mostrar mensaje de error en pantalla ===
-    function mostrarErrorAPI(mensaje) {
-      // Evitar crear múltiples toasts
-      let toast = document.getElementById("apiErrorToast");
-      if (!toast) {
-        toast = document.createElement("div");
-        toast.id = "apiErrorToast";
-        toast.style.position = "fixed";
-        toast.style.top = "20px";
-        toast.style.right = "20px";
-        toast.style.background = "#dc3545"; // rojo alerta
-        toast.style.color = "#fff";
-        toast.style.padding = "12px 18px";
-        toast.style.borderRadius = "8px";
-        toast.style.boxShadow = "0 4px 12px rgba(0,0,0,0.25)";
-        toast.style.fontSize = "0.95rem";
-        toast.style.zIndex = 9999;
-        toast.style.display = "flex";
-        toast.style.alignItems = "center";
-        toast.style.gap = "10px";
-        document.body.appendChild(toast);
-      }
-
-      toast.textContent = mensaje;
-      toast.style.opacity = "1";
-
-      // Desaparece automáticamente después de 5s
-      setTimeout(() => {
-        toast.style.transition = "opacity 0.4s ease";
-        toast.style.opacity = "0";
-      }, 5000);
-    }
-
 
     // === Exportar a CSV ===
     downloadDebug.addEventListener("click", async () => {

@@ -307,8 +307,6 @@ function initGestionPrecios() {
       // Deshabilitar botón Descargar Excel
       const descargarBtn = document.getElementById("descargarExcelBtn");
       if (descargarBtn) descargarBtn.disabled = true;
-
-      console.log("✅ Todo limpiado: tabla, alertas y contadores reiniciados");
     });
   }
 
