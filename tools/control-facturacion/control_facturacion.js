@@ -1346,27 +1346,6 @@ document.querySelectorAll('[data-tool="controlFacturacion"]').forEach(link => {
         </p>
       </div>
     `;
-
-    try {
-      // 📄 Cargar el HTML de la herramienta
-      const res = await fetch("tools/control-facturacion/control_facturacion.html");
-      if (!res.ok) throw new Error("Error al cargar el archivo HTML");
-      const html = await res.text();
-
-      // 🧩 Inyectar el contenido y ejecutar inicialización segura
-      iframeContainer.innerHTML = html;
-      requestAnimationFrame(() => {
-        if (typeof window.initGeneradorControlFacturacion === "function") {
-          window.initGeneradorControlFacturacion();
-        } else {
-          console.warn("⚠ initGeneradorControlFacturacion() no encontrada.");
-        }
-      });
-
-    } catch (err) {
-      iframeContainer.innerHTML = `<p class="text-danger text-center mt-3">❌ Error al cargar la herramienta Control de Registros.</p>`;
-      console.error("Error cargando Control de Registros:", err);
-    }
   });
 });
 

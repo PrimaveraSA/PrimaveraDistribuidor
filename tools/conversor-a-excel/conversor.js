@@ -228,25 +228,6 @@ document.querySelectorAll('[data-tool="conversorAExcel"]').forEach(link => {
         </p>
       </div>
     `;
-
-    try {
-      const res = await fetch("tools/conversor-a-excel/conversor.html");
-      if (!res.ok) throw new Error("Error al cargar el archivo HTML");
-      const html = await res.text();
-
-      iframeContainer.innerHTML = html;
-      requestAnimationFrame(() => {
-        if (typeof window.initConversorAExcel === "function") {
-          window.initConversorAExcel();
-        } else {
-          console.warn("⚠ initConversorAExcel() no encontrada.");
-        }
-      });
-
-    } catch (err) {
-      iframeContainer.innerHTML = `<p class="text-danger text-center mt-3">❌ Error al cargar el conversor PDF → Excel.</p>`;
-      console.error("Error cargando conversor:", err);
-    }
   });
 });
 

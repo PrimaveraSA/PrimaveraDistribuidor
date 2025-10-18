@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (typeof window[fn] === "function") window[fn]();
       });
 
-      // === Reinyectar scripts ===
+      // === Reinyectar scripts de la sección cargada ===
       iframeContainer.querySelectorAll("script").forEach(oldScript => {
         const newScript = document.createElement("script");
         if (oldScript.src) newScript.src = oldScript.src + "?v=" + Date.now();
@@ -89,7 +89,9 @@ document.addEventListener("DOMContentLoaded", () => {
         oldScript.remove();
       });
 
+      // === Inicializar la herramienta correspondiente después de cargar el DOM ===
       await esperarCargaDOM(tool);
+
     } catch (err) {
       console.error("❌ Error cargando herramienta:", err);
       iframeContainer.innerHTML = "<p class='error-msg'>❌ Error al cargar la herramienta.</p>";
@@ -103,7 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const intervalo = setInterval(() => {
         intentos++;
 
-        // === Inicializar cada herramienta cuando esté lista ===
+        // Inicializar cada herramienta cuando el DOM esté listo
         if (tool === "gestionPrecios" && typeof initGestionPrecios === "function" && document.querySelector("#compararBtn")) {
           clearInterval(intervalo);
           initGestionPrecios();
@@ -112,7 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (tool === "controlFacturacion" && typeof initGeneradorControlFacturacion === "function" &&
-            document.querySelector("#generarPDF, #btnComparar, #subirArchivo1")) {
+            document.querySelector("#downloadBtn, #compareBtn, #excelFile1")) {
           clearInterval(intervalo);
           initGeneradorControlFacturacion();
           resolve(true);
@@ -135,6 +137,25 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 100);
     });
   }
+
+  // =======================
+  // Interceptar fetch para errores de red
+  // =======================
+  const originalFetch = window.fetch;
+  window.fetch = async (...args) => {
+    try {
+      const res = await originalFetch(...args);
+      if (!res.ok && res.status === 0) {
+        mostrarModalConexion("⚠ Error de descarga", "Un archivo no se pudo descargar completamente. Esto puede ser un problema de internet.");
+      }
+      return res;
+    } catch (err) {
+      if (!navigator.onLine || (err.message && err.message.includes("ERR_CONTENT_LENGTH_MISMATCH"))) {
+        mostrarModalConexion("⚠ Error de red", "No se pudo conectar al servidor. Verifica tu internet.");
+      }
+      throw err;
+    }
+  };
 
   // === Toggle sidebar móvil ===
   if (toggleBtn) {
@@ -232,23 +253,4 @@ document.addEventListener("DOMContentLoaded", () => {
     ocultarModal();
     mostrarToastConexion("✅ ¡Conexión restablecida!");
   });
-
-  // =======================
-  // Interceptar fetch
-  // =======================
-  const originalFetch = window.fetch;
-  window.fetch = async (...args) => {
-    try {
-      const res = await originalFetch(...args);
-      if (!res.ok && res.status === 0) {
-        mostrarModalConexion("⚠ Error de descarga", "Un archivo no se pudo descargar completamente. Esto puede ser un problema de internet.");
-      }
-      return res;
-    } catch (err) {
-      if (!navigator.onLine || (err.message && err.message.includes("ERR_CONTENT_LENGTH_MISMATCH"))) {
-        mostrarModalConexion("⚠ Error de red", "No se pudo conectar al servidor. Verifica tu internet.");
-      }
-      throw err;
-    }
-  };
 });

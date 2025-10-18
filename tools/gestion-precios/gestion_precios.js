@@ -411,18 +411,6 @@ document.querySelectorAll('[data-tool]').forEach(link => {
         </p>
       `;
 
-      // Cargar contenido dentro del card principal
-      fetch('tools/gestion-precios/gestion_precios.html')
-        .then(res => res.text())
-        .then(html => {
-          iframeContainer.innerHTML = html;
-          initGestionPrecios();
-        })
-        .catch(err => {
-          iframeContainer.innerHTML = `<p class="text-danger text-center mt-3">Error al cargar la herramienta.</p>`;
-          console.error("Error cargando la herramienta:", err);
-        });
-
     } else {
       // --- Si se cambia a otra herramienta o al inicio ---
       titleContainer.innerHTML = '';
