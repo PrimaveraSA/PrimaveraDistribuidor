@@ -119,6 +119,7 @@ function initGeneradorControlFacturacion() {
         // === 🔹 Mostrar resultados y habilitar descarga ===
         mostrarResultados(faltantesTotales);
         downloadBtn.removeAttribute("disabled");
+        aplicarPaginacionTabla();
     });
 
 
