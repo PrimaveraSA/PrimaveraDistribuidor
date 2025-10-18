@@ -1382,7 +1382,7 @@ document.addEventListener("click", (e) => {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Cmprobante</title>
+          <title>Comprobante</title>
           <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
           <style>
             body {
