@@ -33,6 +33,11 @@
       <a class="navbar-brand d-flex align-items-center" href="#">
         <i class="bi bi-tools me-2"></i> Panel de Herramientas
       </a>
+
+      <a href="http://3.14.212.129/" target="_blank" class="text-light text-decoration-none me-3 d-none d-md-block">
+        Ir al sitio principal <i class="bi bi-box-arrow-up-right ms-1"></i>
+      </a>
+
       <button id="toggleSidebarBtn" class="btn btn-sm btn-outline-light d-md-none" aria-label="Toggle Sidebar">
         <i class="bi bi-list"></i>
       </button>
@@ -48,7 +53,7 @@
       <span class="sidebar-title fw-semibold">Dashboard</span>
     </div>
 
-    <ul class="nav flex-column nav-pills mt-3" role="menu">
+    <ul class="nav flex-column nav-pills" role="menu">
       <li class="nav-item">
         <a href="#" class="nav-link active d-flex align-items-center" data-tool="inicio">
           <i class="bi bi-house-door"></i><span>Inicio</span>
@@ -56,7 +61,7 @@
       </li>
       <li class="nav-item">
         <a href="#" class="nav-link d-flex align-items-center" data-tool="inventarioPedidos">
-          <i class="bi bi-box-seam"></i><span>Inventario y Pedidos</span>
+          <i class="bi bi-currency-dollar"></i><span>Control de Precios</span>
         </a>
       </li>
       <li class="nav-item">
@@ -71,7 +76,7 @@
       </li>
       <li class="nav-item">
         <a href="tools/gestion-precios/gestion_precios.html" class="nav-link d-flex align-items-center" data-tool="gestionPrecios">
-          <i class="bi bi-currency-dollar"></i><span>Gestión de Precios</span>
+          <i class="bi bi-box-seam"></i><span>Revisión de Inventario</span>
         </a>
       </li>
     </ul>
@@ -157,9 +162,10 @@
                 <h6 class="fw-semibold mb-0">Estado del Sistema</h6>
               </div>
               <ul class="list-unstyled mb-0 small text-muted">
-                <li class="mb-2"><i class="bi bi-check-circle text-success me-1"></i> Servidores operativos y sincronizados.</li>
+                <li class="mb-2"><i class="bi bi-server text-secondary me-1"></i> Servidores Operativos: <strong id="servidoresStatus">Verificando...</strong></li>
                 <li class="mb-2"><i class="bi bi-check-circle text-success me-1"></i> Todas las herramientas activas.</li>
-                <li><i class="bi bi-clock-history text-secondary me-1"></i> Última actualización: <strong>17/10/2025</strong></li>
+                <li class="mb-2"><i class="bi bi-clock-history text-secondary me-1"></i> Última actualización: <strong id="fechaActual"></strong>
+                <li class="mb-2"><i class="bi bi-clock text-secondary me-1"></i> Hora actual: <strong id="horaActual"></strong></li>
               </ul>
             </div>
           </div>
@@ -173,7 +179,7 @@
             Comunícate con soporte técnico o revisa la guía de resolución de errores comunes.
           </p>
           <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2">
-            soporte@primaveraperu.pe
+            primaveradistribuidores@gmail.com
           </span>
         </div>
 
@@ -248,5 +254,41 @@
   <script src="tools/gestion-precios/gestion_precios.js"></script>
   <script src="tools/conversor-a-excel/conversor.js"></script>
   <script type="module" src="tools/control-facturacion/control_facturacion.js"></script>
+
+  <script>
+    
+    // Fecha y hora
+    const fecha = new Date();
+    const dia = String(fecha.getDate()).padStart(2, '0');
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0'); 
+    const anio = fecha.getFullYear();
+    document.getElementById('fechaActual').textContent = `${dia}/${mes}/${anio}`;
+
+    function actualizarHora() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2,'0');
+      const m = String(now.getMinutes()).padStart(2,'0');
+      const s = String(now.getSeconds()).padStart(2,'0');
+      document.getElementById('horaActual').textContent = `${h}:${m}:${s}`;
+    }
+    setInterval(actualizarHora, 1000);
+    actualizarHora();
+
+    // Estado de conexión
+    const servidores = document.getElementById('servidoresStatus');
+    function actualizarEstado() {
+      if(navigator.onLine){
+        servidores.textContent = "Online ✓";
+        servidores.className = "text-success";
+      } else {
+        servidores.textContent = "Offline ⚠️";
+        servidores.className = "text-danger";
+      }
+    }
+    actualizarEstado();
+    window.addEventListener('online', actualizarEstado);
+    window.addEventListener('offline', actualizarEstado);
+  </script>
+
 </body>
 </html>

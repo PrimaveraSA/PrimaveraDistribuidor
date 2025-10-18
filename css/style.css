@@ -56,12 +56,18 @@ body {
   box-shadow: 8px 0 30px rgba(0,0,0,0.45);
 }
 
+.navbar a.text-light:hover {
+  text-decoration: underline;
+  opacity: 0.9;
+}
+
 /* Logo del sidebar */
 .sidebar-logo {
   width: 30px;       
   height: 30px;
   border-radius: 50%;
   object-fit: cover;
+  margin-left: 8px;
 }
 
 .sidebar-header {
@@ -72,7 +78,8 @@ body {
   font-weight: 600;
   color: #fff;
   font-size: 0.9rem;
-  margin-left: 8px;
+  margin-left: 0px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15); /*franja*/
 }
 
 .sidebar-header i {
@@ -619,6 +626,88 @@ body {
   font-size: 1.4rem;
   color: #fff;
   cursor: pointer;
+}
+
+/* ====== ESTILOS SOLO PARA INICIO ====== */
+#iframe-container_principal {
+  /* Asegura que el área del inicio ocupe bien el ancho */
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#iframe-container_principal .text-center.py-4 {
+  background: linear-gradient(135deg, #f8f9fa, #ffffff);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+#iframe-container_principal .text-center.py-4:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* ====== TARJETAS PRINCIPALES ====== */
+#iframe-container_principal .card {
+  border-radius: 14px !important;
+  transition: all 0.3s ease;
+  background-color: #fff;
+}
+#iframe-container_principal .card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.12);
+}
+#iframe-container_principal .card i {
+  transition: transform 0.4s ease, color 0.4s ease;
+}
+#iframe-container_principal .card:hover i {
+  transform: rotate(10deg) scale(1.1);
+}
+
+/* ====== SECCIONES DE NOVEDADES Y ESTADO ====== */
+#iframe-container_principal .card h6 {
+  font-size: 1rem;
+  color: #343a40;
+}
+#iframe-container_principal ul.list-unstyled li {
+  display: flex;
+  align-items: center;
+}
+#iframe-container_principal ul.list-unstyled li i {
+  font-size: 1rem;
+  margin-right: 6px;
+}
+
+/* ====== BLOQUE DE SOPORTE ====== */
+#iframe-container_principal .bg-light.rounded-3.border {
+  border-color: #e3e6ea !important;
+  transition: all 0.3s ease;
+}
+#iframe-container_principal .bg-light.rounded-3.border:hover {
+  background-color: #f0f4f8;
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
+}
+
+/* ====== BADGE DE CORREO ====== */
+#iframe-container_principal .badge.bg-primary-subtle {
+  background-color: rgba(0, 123, 255, 0.1) !important;
+  border: 1px solid rgba(0, 123, 255, 0.25);
+  font-weight: 500;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+#iframe-container_principal .badge.bg-primary-subtle:hover {
+  background-color: rgba(0, 123, 255, 0.2) !important;
+  transform: scale(1.05);
+}
+
+/* ====== PIE ====== */
+#iframe-container_principal .text-center.text-muted.small {
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+#iframe-container_principal .text-center.text-muted.small:hover {
+  opacity: 1;
 }
 
 /* Adaptable a móviles */
