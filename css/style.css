@@ -498,12 +498,12 @@ body {
 .conv_modal {
   position: fixed;
   inset: 0;
-  display: flex;
+  display: flex !important;
   justify-content: center;
   align-items: center;
   z-index: 1055;
-  pointer-events: none; /* solo el contenido captura clicks */
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.3s ease;
 }
 
@@ -516,12 +516,21 @@ body {
   content: "";
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(2px);
-  z-index: -1; /* debajo del contenido */
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: -1;
 }
 
-/* Contenedor del contenido */
+/* ===== Centrado del contenido ===== */
+.conv_modal-dialog {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0 auto;
+}
+
+/* ===== Contenido ===== */
 .conv_modal-content {
   background: linear-gradient(180deg, #212529 0%, #2c3035 100%);
   color: #f1f1f1;
@@ -531,17 +540,14 @@ body {
   max-width: 420px;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
   animation: modalPopIn 0.35s ease forwards;
-  position: relative;
-  overflow: hidden;
   text-align: center;
   pointer-events: auto;
-  transition: transform 0.3s ease;
+  transform: scale(0.95);
 }
 
-/* Animación */
 @keyframes modalPopIn {
   from {
-    transform: scale(0.9);
+    transform: scale(0.85);
     opacity: 0;
   }
   to {
@@ -550,7 +556,7 @@ body {
   }
 }
 
-/* Encabezado */
+/* ===== Header ===== */
 .conv_modal-header {
   display: flex;
   justify-content: space-between;
@@ -570,21 +576,21 @@ body {
   gap: 8px;
 }
 
-/* Cuerpo */
+/* ===== Body ===== */
 .conv_modal-body {
   padding: 1.5rem 1rem;
   font-size: 1rem;
   line-height: 1.5;
-  color: #495057;
+  color: #e9ecef;
 }
 
-/* Footer / Botones */
+/* ===== Footer ===== */
 .conv_modal-footer {
   display: flex;
   justify-content: center;
   gap: 1rem;
   padding: 1rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .conv_btn-yes {
