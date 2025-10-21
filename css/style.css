@@ -576,6 +576,10 @@ body {
   gap: 8px;
 }
 
+#fechaActual, #horaActual {
+  margin-left: 5px;
+}
+
 /* ===== Body ===== */
 .conv_modal-body {
   padding: 1.5rem 1rem;
