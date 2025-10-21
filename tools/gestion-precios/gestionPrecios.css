@@ -186,9 +186,6 @@
   transition: all 0.25s ease-in-out;
 }
 
-/* === Estados ocultos === */
-.hidden, .d-none { display: none !important; }
-
 /* === Responsivo === */
 @media (max-width: 768px) {
   .card-body p { font-size: 14px; }
