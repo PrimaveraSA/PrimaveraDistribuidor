@@ -304,7 +304,11 @@ function initGeneradorControlFacturacion() {
         const idxCodigo = findSafeIndex("COD");
         const idxDescripcion = findSafeIndex("DES");
         const idxUM = findSafeIndex("UM");
-        const idxPrecio = findSafeIndex("PRECIO");
+        // Buscar índice de precio con prioridad: P.UNIT DSCTO > P.UNIT > PRECIO
+        let idxPrecio = headers.findIndex(h => h.includes("P.UNIT DSCTO"));
+        if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("P.UNIT"));
+        if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("PRECIO"));
+
         const idxCantidad = findSafeIndex("CANT");
         const idxSubtotal = findSafeIndex("SUB");
 
