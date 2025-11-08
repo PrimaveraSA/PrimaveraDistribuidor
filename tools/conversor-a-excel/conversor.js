@@ -132,13 +132,17 @@ function initConversorAExcel() {
     async function convertirArchivo() {
       simulateProgress(async () => {
         try {
+          // 🔹 Mostrar alerta de carga
+          mensajeCarga.classList.remove("d-none");
+          mensajeExito.classList.add("d-none");
+
           const formData = new FormData();
           formData.append("File", selectedFile);
           formData.append("StoreFile", "true");
           formData.append("IncludeFormatting", "true");
           formData.append("SingleSheet", "true");
 
-          const token = "Bearer kCqsdQdOiaezz0PVGC9tKdKkmGuQsaoV";
+          const token = "Bearer dLmtUpHJEEWSkzedXCPHNU0WrFFxNdtV";
           const response = await fetch("https://v2.convertapi.com/convert/pdf/to/xlsx", {
             method: "POST",
             headers: { Authorization: token },
@@ -162,8 +166,16 @@ function initConversorAExcel() {
           a.remove();
 
           downloadDebug.disabled = false;
+
+          // 🔹 Mostrar alerta de éxito
+          mensajeCarga.classList.add("d-none");
+          mensajeExito.classList.remove("d-none");
+          setTimeout(() => mensajeExito.classList.add("d-none"), 4000);
+
         } catch (error) {
           console.error(error);
+          mensajeCarga.classList.add("d-none");
+          alert("Ocurrió un error durante la conversión. Intenta nuevamente.");
         }
       });
     }
@@ -199,7 +211,7 @@ function initConversorAExcel() {
 }
 
 /* ======================================================
-   🚀 CARGA DINÁMICA - Conversor PDF → Excel
+   CARGA DINÁMICA - Conversor PDF → Excel
    ====================================================== */
 document.querySelectorAll('[data-tool="conversorAExcel"]').forEach(link => {
   link.addEventListener("click", async e => {

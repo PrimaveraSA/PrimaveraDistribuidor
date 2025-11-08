@@ -365,7 +365,7 @@ function initGeneradorControlFacturacion() {
 
 
     // ==========================
-    // 📝 Rellenar formulario con los datos del cliente extraídos del Excel
+    // Rellenar formulario con los datos del cliente extraídos del Excel
     // ==========================
     function rellenarFormularioCliente(clienteData) {
         if (!clienteData) return;
@@ -390,7 +390,7 @@ function initGeneradorControlFacturacion() {
     }
 
     // ==========================
-    // ⏰ Validación dinámica en los inputs de fecha
+    // Validación dinámica en los inputs de fecha
     // ==========================
     function validarFormatoFecha(inputId) {
         const input = document.getElementById(inputId);
