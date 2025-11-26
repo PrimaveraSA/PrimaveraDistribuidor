@@ -142,7 +142,7 @@ function initConversorAExcel() {
           formData.append("IncludeFormatting", "true");
           formData.append("SingleSheet", "true");
 
-          const token = "Bearer dLmtUpHJEEWSkzedXCPHNU0WrFFxNdtV";
+          const token = "Bearer gzuRbsK8o7ckUe6SX5UYZ6DZ7eWbSlAd";
           const response = await fetch("https://v2.convertapi.com/convert/pdf/to/xlsx", {
             method: "POST",
             headers: { Authorization: token },
