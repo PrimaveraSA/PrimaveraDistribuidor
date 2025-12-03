@@ -45,8 +45,10 @@ function initGeneradorControlFacturacion() {
         const modeloText = (modeloData.rawText || (modeloData.rawCells || []).join(" ")).toString();
         const maestroText = (maestroData.rawText || (maestroData.rawCells || []).join(" ")).toString();
 
-        // === 🔹 Detectar proforma automáticamente (solo si no existe ya) ===
+        // === 🔹 Detectar proforma/SP automáticamente (priorizar SP) ===
         let proformaNumber =
+            findSaldoProformaNumberInText(maestroText) ||
+            findSaldoProformaNumberInText(modeloText) ||
             findNumberByPrefixInText(maestroText, "002") ||
             findNumberByPrefixInText(modeloText, "002") ||
             "";
@@ -61,7 +63,23 @@ function initGeneradorControlFacturacion() {
         // === 🔹 Extraer datos de códigos y cliente ===
         modeloCodes = modeloData.codes || [];
         maestroCodes = maestroData.codes || [];
-        clienteData = maestroData.clienteData || {};
+
+        const baseProformaNumber = findNumberByPrefixInText(maestroText, "002") || findNumberByPrefixInText(modeloText, "002") || "";
+
+        const esSP = (v) => !!(v && String(v).toUpperCase().startsWith("SP"));
+        const preferModelo = esSP(proformaNumber) || /\bSP\b|SALDOS?\s*DE\s*PROFORMA/i.test(maestroText);
+        const mergeCliente = (a = {}, b = {}) => {
+            const keys = ["razon","dni","direccion","referencia","entrega","contacto","fecEmision","fecEntrega","pedido"];
+            const out = {};
+            keys.forEach(k => out[k] = (preferModelo ? a[k] : b[k]) || "");
+            keys.forEach(k => { if (!out[k]) out[k] = (preferModelo ? b[k] : a[k]) || ""; });
+            const same = out.razon && out.direccion && out.razon.trim().toUpperCase() === out.direccion.trim().toUpperCase();
+            if (same && ((preferModelo ? b.razon : a.razon))) out.razon = (preferModelo ? b.razon : a.razon);
+            const dniOk = /\b\d{11}\b|\b\d{8}\b/.test(out.dni || "");
+            if (!dniOk) out.dni = (preferModelo ? b.dni : a.dni) || out.dni;
+            return out;
+        };
+        clienteData = mergeCliente(modeloData.clienteData, maestroData.clienteData);
 
         // === 🔹 Validar número de factura ===
         const facturaNumber = facturaInput.value.trim();
@@ -73,53 +91,60 @@ function initGeneradorControlFacturacion() {
         // === 🔹 Rellenar datos de cliente (si existen) ===
         rellenarFormularioCliente(clienteData);
 
+        // Guardar para PDF encabezados dinámicos
+        window.__baseProformaNumber = baseProformaNumber;
+        window.__esSPDocumento = esSP(proformaNumber);
+
         const normalizeLocal = v => normalizeCodigo(v);
 
-        // === 🔹 Detectar duplicados ===
         detectarDuplicados(modeloCodes, "Factura/Boleta/Nota de Pedido");
         detectarDuplicados(maestroCodes, "Proforma");
 
-        // === 🔹 Faltantes en factura ===
+        const modeloSet = new Set(modeloCodes
+            .map(c => normalizeLocal(c.codigoNorm || c.codigo || ""))
+            .filter(Boolean));
+        const maestroSet = new Set(maestroCodes
+            .map(c => normalizeLocal(c.codigoNorm || c.codigo || ""))
+            .filter(Boolean));
+
         const faltantesEnFactura = maestroCodes
             .filter(code => {
-                const nc = normalizeLocal(code.codigo || code.codigoNorm || "");
-                if (!nc) return false;
-                return !modeloCodes.some(c => normalizeLocal(c.codigo || c.codigoNorm || "") === nc);
+                const nc = normalizeLocal(code.codigoNorm || code.codigo || "");
+                return nc && !modeloSet.has(nc);
             })
             .map(c => ({ ...c, _origen: "PROFORMA_SIN_FACTURA" }));
 
-        // === 🔹 No registrados en proforma ===
         const noRegistradosEnProforma = modeloCodes
             .filter(code => {
-                const nc = normalizeLocal(code.codigo || code.codigoNorm || "");
-                if (!nc) return false;
-                return !maestroCodes.some(c => normalizeLocal(c.codigo || c.codigoNorm || "") === nc);
+                const nc = normalizeLocal(code.codigoNorm || code.codigo || "");
+                return nc && !maestroSet.has(nc);
             })
             .map(c => ({ ...c, _origen: "FACTURA_SIN_PROFORMA" }));
 
-        // === 🔹 Combinar resultados ===
         const merged = [...faltantesEnFactura, ...noRegistradosEnProforma];
         const mapByCode = new Map();
-
         merged.forEach(item => {
-            const key = normalizeLocal(item.codigo || item.codigoNorm || "");
+            const key = normalizeLocal(item.codigoNorm || item.codigo || "");
+            if (!key) return;
             if (!mapByCode.has(key)) {
                 mapByCode.set(key, item);
             } else {
                 const existing = mapByCode.get(key);
-                existing._origen =
-                    existing._origen === item._origen
-                        ? existing._origen
-                        : `${existing._origen}|${item._origen}`;
+                existing._origen = existing._origen === item._origen ? existing._origen : `${existing._origen}|${item._origen}`;
             }
         });
 
+        const coincidencias = Array.from(modeloSet).filter(k => maestroSet.has(k)).length;
         const faltantesTotales = Array.from(mapByCode.values());
 
-        // === 🔹 Mostrar resultados y habilitar descarga ===
         mostrarResultados(faltantesTotales);
         downloadBtn.removeAttribute("disabled");
+        const selectorFilas = document.getElementById("rowsPerPage2");
+        if (selectorFilas) selectorFilas.value = "todos";
         aplicarPaginacionTabla();
+
+        const resumen = `Coinciden: ${coincidencias} | Faltan en Excel 1: ${noRegistradosEnProforma.length} | Faltan en Excel 2: ${faltantesEnFactura.length} | Total a mostrar: ${faltantesTotales.length}`;
+        showToast(resumen, "info");
     });
 
 
@@ -213,58 +238,95 @@ function initGeneradorControlFacturacion() {
     const firstSheet = workbook.Sheets[firstSheetName];
     const firstJson = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
 
-    // --- Leer filas base ---
-    const fila3 = cleanVal(firstJson[2]?.[3]);
-    const fila4 = cleanVal(firstJson[3]?.[3]);
-    const fila5 = cleanVal(firstJson[4]?.[3]);
-    const fila6 = cleanVal(firstJson[5]?.[3]);
-    const fila7 = cleanVal(firstJson[6]?.[3]);
-    const fila8 = cleanVal(firstJson[7]?.[3]);
-    const fila9 = cleanVal(firstJson[8]?.[3]);
+    const findRightValue = (row, startIdx) => {
+        for (let c = startIdx + 1; c <= startIdx + 3 && c < row.length; c++) {
+            const v = cleanVal(row[c]);
+            if (v) return v.replace(/^:\s*/, "");
+        }
+        const self = cleanVal(row[startIdx]);
+        const m = self.match(/:\s*(.+)$/);
+        return m ? m[1].trim() : "";
+    };
 
-    const regexRucDni = /^\d{8}(\d{3})?$/; // 8 o 11 dígitos
-
-    let razon = fila3;
-    let dni = fila4;
-    let direccion = fila5;
-    let referencia = fila6;
-    let entrega = fila7;
-    let contacto = fila8;
-
-    // 👉 Si fila4 NO es RUC/DNI, se concatena a razón y se corre todo
-    if (fila4 && !regexRucDni.test(fila4)) {
-        razon = `${fila3} ${fila4}`.trim();
-        dni = fila5;
-        direccion = fila6;
-        referencia = fila7;
-        entrega = fila8;
-        contacto = fila9;
+    // Detectar inicio de la sección "DATOS DEL CLIENTE" para evitar capturar el header de la empresa
+    let sectionStart = 0;
+    for (let r = 0; r < Math.min(firstJson.length, 60); r++) {
+        const rowText = (firstJson[r] || []).map(x => cleanVal(x)).join(" ").toUpperCase();
+        if (rowText.includes("DATOS DEL CLIENTE")) { sectionStart = r; break; }
     }
 
-    // --- Extraer fechas y pedido ---
-    const readHI = (rowIndex, jsonData) => {
-        const valH = cleanVal(jsonData[rowIndex]?.[7]);
-        const valI = cleanVal(jsonData[rowIndex]?.[8]);
-        if (valH && !["EMAIL", "IMAL"].includes(valH.toUpperCase())) return valH;
-        if (valI && !["EMAIL", "IMAL"].includes(valI.toUpperCase())) return valI;
-        return "";
-    };
+    const labels = [
+        { key: "razon", re: /RAZON\s*SOCIAL/i },
+        { key: "dni", re: /DNI\s*\/\s*RUC|DNI|RUC/i },
+        { key: "direccion", re: /DIRECCI[ÓO]N(?!\s*ENTREGA)/i },
+        { key: "referencia", re: /REFERENCIA/i },
+        { key: "entrega", re: /DIRECCI[ÓO]N\s*ENTREGA/i },
+        { key: "contacto", re: /(TEL|CEL|TEL\/CEL)/i },
+        { key: "fecEmision", re: /FEC\.?\s*EMISI[ÓO]N/i },
+        { key: "fecEntrega", re: /FEC\.?\s*ENTREGA/i },
+        { key: "pedido", re: /PEDIDO/i }
+    ];
 
-    const fecEmision = validarFecha(readHI(2, firstJson));
-    const fecEntrega = validarFecha(readHI(4, firstJson));
-    const pedido = readHI(5, firstJson);
+    const extracted = { razon: "", dni: "", direccion: "", referencia: "", entrega: "", contacto: "", fecEmision: "", fecEntrega: "", pedido: "" };
 
-    const clienteDataLocal = {
-        razon,
-        dni,
-        direccion,
-        referencia,
-        entrega,
-        contacto,
-        fecEmision,
-        fecEntrega,
-        pedido
+    for (let r = sectionStart; r < Math.min(firstJson.length, sectionStart + 40); r++) {
+        const row = firstJson[r] || [];
+        for (let c = 0; c < Math.min(row.length, 12); c++) {
+            const cell = cleanVal(row[c]);
+            if (!cell) continue;
+            const upper = cell.toUpperCase();
+            for (const lab of labels) {
+                if (lab.re.test(upper)) {
+                    let val = findRightValue(row, c);
+                    if (lab.key === "fecEmision" || lab.key === "fecEntrega") val = validarFecha(val);
+                    if (val && !extracted[lab.key]) extracted[lab.key] = val;
+                }
+            }
+        }
+    }
+
+    if (!extracted.direccion) {
+        for (let r = 0; r < Math.min(firstJson.length, 40); r++) {
+            const row = firstJson[r] || [];
+            for (let c = 0; c < Math.min(row.length, 12); c++) {
+                const cell = cleanVal(row[c]);
+                if (/DIRECCI[ÓO]N(?!\s*ENTREGA)/i.test(cell || "")) {
+                    const part1 = findRightValue(row, c);
+                    const nextRow = firstJson[r + 1] || [];
+                    const part2 = findRightValue(nextRow, c);
+                    extracted.direccion = [part1, part2].filter(Boolean).join(" ");
+                }
+            }
+        }
+    }
+
+    // Sanitizar DNI/RUC: extraer solo 8 o 11 dígitos
+    const pickDniRuc = (raw) => {
+        const txt = cleanVal(raw);
+        const m = txt.match(/\b\d{11}\b|\b\d{8}\b/);
+        return m ? m[0] : "";
     };
+    extracted.dni = pickDniRuc(extracted.dni);
+
+    if (!extracted.dni) {
+        for (let r = sectionStart; r < Math.min(firstJson.length, sectionStart + 40); r++) {
+            const row = firstJson[r] || [];
+            for (let c = 0; c < Math.min(row.length, 12); c++) {
+                const cell = cleanVal(row[c]);
+                if (/DNI\s*\/\s*RUC|DNI|RUC/i.test(cell || "")) {
+                    const candidates = [findRightValue(row, c)];
+                    const nextRow = firstJson[r + 1] || [];
+                    candidates.push(findRightValue(nextRow, c));
+                    const joined = candidates.filter(Boolean).join(" ");
+                    const val = pickDniRuc(joined);
+                    if (val) { extracted.dni = val; break; }
+                }
+            }
+            if (extracted.dni) break;
+        }
+    }
+
+    const clienteDataLocal = extracted;
 
     // ===============================
     // 📌 2️⃣ PRODUCTOS (todas las hojas)
@@ -289,58 +351,83 @@ function initGeneradorControlFacturacion() {
         }
         }
 
-        // Detectar fila de encabezado de tabla
-        let headerIndex = 8;
-        for (let r = 6; r <= 12 && r < jsonData.length; r++) {
-        const row = (jsonData[r] || []).map(h => (h ? String(h).trim().toUpperCase() : ""));
-        const hasCod = row.some(h => /^(#|COD|CÓD|CÓDIGO|CODIGO)$/.test(h) || /COD/.test(h));
-        const hasDes = row.some(h => /DESCRIP|DESCRIPCIÓN|DESCRIPCION|DES/.test(h));
-        if (hasCod && hasDes) { headerIndex = r; break; }
-        }
+        let idxCodigo = -1, idxDescripcion = -1, idxUM = -1, idxPrecio = -1, idxCantidad = -1, idxSubtotal = -1;
+        const isHeaderRow = (rowArr) => {
+            const rowU = (rowArr || []).map(h => (h ? String(h).trim().toUpperCase() : ""));
+            const hasCod = rowU.some(h => /^(#|COD|CÓD|CÓDIGO|CODIGO)$/.test(h) || /\bCOD\b/.test(h));
+            const hasDes = rowU.some(h => /DESCRIP|DESCRIPCIÓN|DESCRIPCION|\bDES\b/.test(h));
+            return hasCod && hasDes;
+        };
 
-        const headersRow = jsonData[headerIndex] || [];
-        const headers = headersRow.map(h => (h ? String(h).trim().toUpperCase() : ""));
-        const findSafeIndex = (keyword) => headers.findIndex(h => h && h.includes(keyword));
-        const idxCodigo = findSafeIndex("COD");
-        const idxDescripcion = findSafeIndex("DES");
-        const idxUM = findSafeIndex("UM");
-        // Buscar índice de precio con prioridad: P.UNIT DSCTO > P.UNIT > PRECIO
-        let idxPrecio = headers.findIndex(h => h.includes("P.UNIT DSCTO"));
-        if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("P.UNIT"));
-        if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("PRECIO"));
+        for (let i = 0; i < jsonData.length; i++) {
+            const row = jsonData[i] || [];
+            if (isHeaderRow(row)) {
+                const headers = (row || []).map(h => (h ? String(h).trim().toUpperCase() : ""));
+                const findSafeIndex = (keyword) => headers.findIndex(h => h && h.includes(keyword));
+                idxCodigo = findSafeIndex("COD");
+                idxDescripcion = findSafeIndex("DES");
+                idxUM = findSafeIndex("UM");
+                idxPrecio = headers.findIndex(h => h.includes("P.UNIT DSCTO"));
+                if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("P.UNIT"));
+                if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("PRECIO"));
+                idxCantidad = findSafeIndex("CANT");
+                idxSubtotal = findSafeIndex("SUB");
+                continue;
+            }
 
-        const idxCantidad = findSafeIndex("CANT");
-        const idxSubtotal = findSafeIndex("SUB");
-
-        if (idxCodigo >= 0) {
-        for (let i = headerIndex + 1; i < jsonData.length; i++) {
-            const row = jsonData[i];
+            if (idxCodigo < 0) continue;
             if (!row || row.every(cell => cell === undefined || cell === null || String(cell).trim() === "")) continue;
+            const anyTotal = (row || []).some(x => /TOTAL|SON\s*:|SON\b/i.test(String(x || "")));
+            if (anyTotal) continue;
+
             const codigoRaw = cleanVal(row[idxCodigo]);
             const descripcion = idxDescripcion >= 0 ? cleanVal(row[idxDescripcion]) : "";
             const um = idxUM >= 0 ? cleanVal(row[idxUM]) : "";
             const precio = idxPrecio >= 0 ? cleanVal(row[idxPrecio]) : "";
             const cantidad = idxCantidad >= 0 ? cleanVal(row[idxCantidad]) : "";
             const subtotal = idxSubtotal >= 0 ? cleanVal(row[idxSubtotal]) : "";
-            if (codigoRaw) {
             const codigoNorm = normalizeCodigo(codigoRaw);
-            codes.push({
-                codigo: codigoRaw,
-                codigoNorm,
-                descripcion,
-                um,
-                precio,
-                cantidad,
-                subtotal,
-                sheet: sheetName,
-                rowIndex: i + 1
-            });
+            if (codigoNorm) {
+                codes.push({
+                    codigo: codigoRaw,
+                    codigoNorm,
+                    descripcion,
+                    um,
+                    precio,
+                    cantidad,
+                    subtotal,
+                    sheet: sheetName,
+                    rowIndex: i + 1
+                });
             }
-        }
         }
     }
 
-    const rawText = allRaw.join(" ").replace(/\s+/g, " ").trim();
+    let shapesText = "";
+    try {
+        const zip = await JSZip.loadAsync(data);
+        const drawingFiles = Object.keys(zip.files).filter(f => f.match(/xl\/drawings\/drawing\d+\.xml$/));
+        for (const fileName of drawingFiles) {
+            const xmlText = await zip.file(fileName).async("text");
+            const shapeTexts = Array.from(xmlText.matchAll(/<a:t[^>]*>([^<]+)<\/a:t>/g)).map(m => m[1]).join(" ");
+            shapesText += " " + shapeTexts;
+        }
+    } catch (e) {}
+
+    const rawText = (allRaw.join(" ") + " " + shapesText).replace(/\s+/g, " ").trim();
+
+    const pick = (re) => {
+        const m = rawText.match(re);
+        return m ? String(m[1]).trim() : "";
+    };
+    if (!clienteDataLocal.razon) clienteDataLocal.razon = pick(/RAZON\s*SOCIAL\s*:\s*([^:]+?)(?=FEC\.|DNI|RUC|DNI\s*\/\s*RUC|DIRECCI|REFERENCIA|PEDIDO|$)/i);
+    if (!clienteDataLocal.dni) clienteDataLocal.dni = pickDniRuc(pick(/DNI\s*\/\s*RUC\s*:\s*([^:]+?)(?=DIRECCI|REFERENCIA|PEDIDO|FEC\.|EMAIL|$)/i)) || pickDniRuc(rawText);
+    if (!clienteDataLocal.direccion) clienteDataLocal.direccion = pick(/DIRECCI[ÓO]N\s*:\s*([^:]+?)(?=REFERENCIA|DIRECCI[ÓO]N\s*ENTREGA|FEC\.|PEDIDO|$)/i);
+    if (!clienteDataLocal.referencia) clienteDataLocal.referencia = pick(/REFERENCIA\s*:\s*([^:]+?)(?=DIRECCI|FEC\.|PEDIDO|$)/i);
+    if (!clienteDataLocal.fecEmision) clienteDataLocal.fecEmision = validarFecha(pick(/FEC\.?\s*EMISI[ÓO]N\s*:\s*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i));
+    if (!clienteDataLocal.fecEntrega) clienteDataLocal.fecEntrega = validarFecha(pick(/FEC\.?\s*ENTREGA\s*:\s*(\d{2}[\/\-]\d{2}[\/\-]\d{4})/i));
+    if (!clienteDataLocal.pedido) clienteDataLocal.pedido = pick(/PEDIDO\s*:\s*([^:]+?)(?=DIRECCI|REFERENCIA|FEC\.|$)/i);
+
     return { clienteData: clienteDataLocal, codes, rawCells: allRaw, rawText, cellsInfo };
     }
 
@@ -669,11 +756,13 @@ function initGeneradorControlFacturacion() {
         const titleY = boxTop + 8;
         const numberY = boxTop + 14;
 
-        // PROFORMA
+        const esSPDoc = !!window.__esSPDocumento;
+        const leftTitle = esSPDoc ? "Saldo de Proforma anterior" : "Proforma de Venta";
+        const leftNumber = esSPDoc ? (proformaNumber || "-") : (proformaNumber || "-");
         doc.setFont("helvetica", "bold").setFontSize(10);
-        doc.text("Proforma de Venta", leftX, titleY);
+        doc.text(leftTitle, leftX, titleY);
         doc.setFont("helvetica", "normal").setFontSize(9);
-        doc.text(proformaNumber || "-", leftX, numberY);
+        doc.text(leftNumber, leftX, numberY);
 
         // CONTADOR GLOBAL
         doc.setFont("helvetica", "bold").setFontSize(10);
@@ -694,7 +783,10 @@ function initGeneradorControlFacturacion() {
         doc.setDrawColor(190, 30, 45);
         doc.line(MARGIN_X + 5, boxTop + boxHeight - 5, PAGE_WIDTH - MARGIN_X - 5, boxTop + boxHeight - 5);
         doc.setFontSize(8).setTextColor(80, 80, 80);
-        doc.text(`${tipoDocumento} ligada directamente a la Proforma indicada arriba.`, PAGE_WIDTH / 2, boxTop + boxHeight - 1, { align: "center" });
+        const linkText = esSPDoc
+            ? "Saldo de Proforma actual ligado directamente al Saldo de Proforma anterior indicado arriba."
+            : `${tipoDocumento} ligada directamente a la Proforma indicada arriba.`;
+        doc.text(linkText, PAGE_WIDTH / 2, boxTop + boxHeight - 1, { align: "center" });
 
         // ========================
         // DATOS CLIENTE (directo de inputs)
@@ -1170,6 +1262,8 @@ function initGeneradorControlFacturacion() {
         return `${parte1}-${parte2}`;
     }
 
+    
+
     // fallback simple
     const re2 = new RegExp(`\\b(${p})[-\\s:/\\\\]*(\\d{5,8})\\b`, "i");
     const m2 = txt.match(re2);
@@ -1178,6 +1272,16 @@ function initGeneradorControlFacturacion() {
     return "";
     }
 
+    function findSaldoProformaNumberInText(rawText) {
+    if (!rawText) return "";
+    const txt = normalizeForMatch(rawText).toUpperCase();
+    if (!/\bSP\b|SALDOS?\s*DE\s*PROFORMA/.test(txt)) return "";
+    const direct = txt.match(/\bSP[-\s:/\\]*(\d{5,8})\b/);
+    if (direct) return `SP-${String(direct[1]).padStart(8, "0")}`;
+    const base = findNumberByPrefixInText(txt, "002");
+    if (base) return `SP-${base}`;
+    return "";
+    }
     // ==========================
     // 🪄 Mostrar número detectado
     // ==========================
@@ -1203,7 +1307,7 @@ function initGeneradorControlFacturacion() {
     try {
         const textoExcel = await leerSoloFila1YShapes(file);
 
-        const numeroDetectado = findNumberByPrefixInText(textoExcel, "002") || "";
+        const numeroDetectado = findSaldoProformaNumberInText(textoExcel) || findNumberByPrefixInText(textoExcel, "002") || "";
 
         if (numeroDetectado) {
         mostrarProformaDetectada(numeroDetectado);
