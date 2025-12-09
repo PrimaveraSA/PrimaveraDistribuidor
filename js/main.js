@@ -1,3 +1,4 @@
+"use strict";
 // main.js (principal - global)
 
 // =========================================
@@ -80,12 +81,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (typeof window[fn] === "function") window[fn]();
       });
 
-      // === Reinyectar scripts de la sección cargada ===
+      // === Reinyectar solo scripts externos de la sección cargada (no inline) ===
       iframeContainer.querySelectorAll("script").forEach(oldScript => {
-        const newScript = document.createElement("script");
-        if (oldScript.src) newScript.src = oldScript.src + "?v=" + Date.now();
-        else newScript.textContent = oldScript.textContent;
-        document.body.appendChild(newScript);
+        if (oldScript.src) {
+          const newScript = document.createElement("script");
+          newScript.defer = true;
+          newScript.src = oldScript.src + "?v=" + Date.now();
+          document.body.appendChild(newScript);
+        }
         oldScript.remove();
       });
 
@@ -254,3 +257,42 @@ document.addEventListener("DOMContentLoaded", () => {
     mostrarToastConexion("✅ ¡Conexión restablecida!");
   });
 });
+  // === Fecha, hora y estado de conexión ===
+  (function initFechaHoraYEstado() {
+    const fechaEl = document.getElementById("fechaActual");
+    const horaEl = document.getElementById("horaActual");
+    const servidores = document.getElementById("servidoresStatus");
+
+    if (fechaEl) {
+      const fecha = new Date();
+      const dia = String(fecha.getDate()).padStart(2, "0");
+      const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+      const anio = fecha.getFullYear();
+      fechaEl.textContent = `${dia}/${mes}/${anio}`;
+    }
+
+    function actualizarHora() {
+      if (!horaEl) return;
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, "0");
+      const m = String(now.getMinutes()).padStart(2, "0");
+      const s = String(now.getSeconds()).padStart(2, "0");
+      horaEl.textContent = `${h}:${m}:${s}`;
+    }
+    actualizarHora();
+    setInterval(actualizarHora, 1000);
+
+    function actualizarEstado() {
+      if (!servidores) return;
+      if (navigator.onLine) {
+        servidores.textContent = "Online ✓";
+        servidores.className = "text-success";
+      } else {
+        servidores.textContent = "Offline ⚠️";
+        servidores.className = "text-danger";
+      }
+    }
+    actualizarEstado();
+    window.addEventListener("online", actualizarEstado);
+    window.addEventListener("offline", actualizarEstado);
+  })();

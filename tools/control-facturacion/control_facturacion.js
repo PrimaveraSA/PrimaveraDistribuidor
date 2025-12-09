@@ -121,7 +121,49 @@ function initGeneradorControlFacturacion() {
             })
             .map(c => ({ ...c, _origen: "FACTURA_SIN_PROFORMA" }));
 
-        const merged = [...faltantesEnFactura, ...noRegistradosEnProforma];
+        const normalizeUM = (v) => {
+            const s = String(v || "").toUpperCase().replace(/[\s\.;:_-]+/g, " ").trim();
+            if (!s) return "";
+            if (/^UN(\.|IDAD|ID)?$/i.test(s) || /^UND$/i.test(s)) return "UNIDAD";
+            return s;
+        };
+
+        const modeloMap = new Map();
+        modeloCodes.forEach(c => {
+            const k = normalizeLocal(c.codigoNorm || c.codigo || "");
+            if (k) modeloMap.set(k, c);
+        });
+        const maestroMap = new Map();
+        maestroCodes.forEach(c => {
+            const k = normalizeLocal(c.codigoNorm || c.codigo || "");
+            if (k) maestroMap.set(k, c);
+        });
+
+        const umDiferentes = [];
+        modeloSet.forEach(k => {
+            if (maestroSet.has(k)) {
+                const a = modeloMap.get(k) || {};
+                const b = maestroMap.get(k) || {};
+                const ua = normalizeUM(a.um);
+                const ub = normalizeUM(b.um);
+                if (ua && ub && ua !== ub) {
+                    umDiferentes.push({
+                        codigo: a.codigo || b.codigo,
+                        codigoNorm: k,
+                        descripcion: a.descripcion || b.descripcion || "",
+                        um: ub,
+                        precio: b.precio || a.precio || "",
+                        cantidad: b.cantidad || a.cantidad || "",
+                        subtotal: b.subtotal || a.subtotal || "",
+                        _origen: "UM_DIFERENTE",
+                        _um_modelo: ua,
+                        _um_maestro: ub
+                    });
+                }
+            }
+        });
+
+        const merged = [...faltantesEnFactura, ...noRegistradosEnProforma, ...umDiferentes];
         const mapByCode = new Map();
         merged.forEach(item => {
             const key = normalizeLocal(item.codigoNorm || item.codigo || "");
@@ -143,7 +185,7 @@ function initGeneradorControlFacturacion() {
         if (selectorFilas) selectorFilas.value = "todos";
         aplicarPaginacionTabla();
 
-        const resumen = `Coinciden: ${coincidencias} | Faltan en Excel 1: ${noRegistradosEnProforma.length} | Faltan en Excel 2: ${faltantesEnFactura.length} | Total a mostrar: ${faltantesTotales.length}`;
+        const resumen = `Coinciden: ${coincidencias} | Faltan en Excel 1: ${noRegistradosEnProforma.length} | Faltan en Excel 2: ${faltantesEnFactura.length} | UM diferentes: ${umDiferentes.length} | Total a mostrar: ${faltantesTotales.length}`;
         showToast(resumen, "info");
     });
 
@@ -359,19 +401,69 @@ function initGeneradorControlFacturacion() {
             return hasCod && hasDes;
         };
 
+        const isUmCandidate = (s) => {
+            const t = (s || "").toString().trim();
+            if (!t) return false;
+            const u = t.toUpperCase();
+            if (/^\d+(?:[\.,]\d+)?$/.test(u)) return false;
+            if (/^(TOTAL|SUBTOTAL|PRECIO|CANTIDAD)$/.test(u)) return false;
+            if (/^S\/N$/.test(u)) return false;
+            return /(BOX|CAJA|CAJON|DOCENA|UND|UNID|UNIDAD|JUEGO|PAQ|PACK|BOLSA|SOBRE|RESMA|HOJAS|HJS|X\s*\d+)/i.test(u) || u.length <= 20;
+        };
+
+        const extractUMFromRow = (row, idxUM, idxDescripcion, idxPrecio) => {
+            if (idxUM >= 0) {
+                const v = cleanVal(row[idxUM]);
+                if (isUmCandidate(v)) return v;
+            }
+            if (idxPrecio >= 1) {
+                const v1 = cleanVal(row[idxPrecio - 1]);
+                if (isUmCandidate(v1)) return v1;
+            }
+            const end = idxPrecio >= 0 ? Math.min(idxPrecio, row.length) : row.length;
+            for (let c = Math.max(0, idxDescripcion + 1); c < end; c++) {
+                const v = cleanVal(row[c]);
+                if (isUmCandidate(v)) return v;
+            }
+            return "";
+        };
+
         for (let i = 0; i < jsonData.length; i++) {
             const row = jsonData[i] || [];
             if (isHeaderRow(row)) {
                 const headers = (row || []).map(h => (h ? String(h).trim().toUpperCase() : ""));
                 const findSafeIndex = (keyword) => headers.findIndex(h => h && h.includes(keyword));
-                idxCodigo = findSafeIndex("COD");
-                idxDescripcion = findSafeIndex("DES");
-                idxUM = findSafeIndex("UM");
-                idxPrecio = headers.findIndex(h => h.includes("P.UNIT DSCTO"));
+
+                const matchIndex = (re) => headers.findIndex(h => re.test(h.replace(/[\s\.;:_-]+/g, " "))); // normaliza separadores
+
+                idxCodigo = matchIndex(/\b(#|COD|CÓD|CÓDIGO|CODIGO)\b/);
+                if (idxCodigo < 0) idxCodigo = findSafeIndex("COD");
+
+                idxDescripcion = matchIndex(/DESCRIP|DESCRIPCIÓN|DESCRIPCION|\bDES\b/);
+                if (idxDescripcion < 0) idxDescripcion = findSafeIndex("DES");
+
+                idxUM = matchIndex(/\bU\.?\s*M\b|UNIDAD(\s*DE\s*MEDIDA)?|\bUND\b|\bUNID\b|U\/?M/);
+                if (idxUM < 0) idxUM = findSafeIndex("UM");
+
+                idxPrecio = matchIndex(/P\.?\s*UNIT(\s*DSCTO)?|PRECIO/);
+                if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("P.UNIT DSCTO"));
                 if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("P.UNIT"));
                 if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("PRECIO"));
-                idxCantidad = findSafeIndex("CANT");
-                idxSubtotal = findSafeIndex("SUB");
+
+                idxCantidad = matchIndex(/\bCANT(IDAD)?\b/);
+                if (idxCantidad < 0) idxCantidad = findSafeIndex("CANT");
+
+                idxSubtotal = matchIndex(/SUB\s*TOTAL|SUBTOTAL|\bSUB\b/);
+                if (idxSubtotal < 0) idxSubtotal = findSafeIndex("SUB");
+
+                if (idxUM < 0 && idxDescripcion >= 0 && idxPrecio >= 0) {
+                    const candidate = idxPrecio - 1;
+                    if (candidate >= 0) idxUM = candidate;
+                }
+                if (idxUM < 0 && idxDescripcion >= 0) {
+                    idxUM = idxDescripcion + 1;
+                }
+
                 continue;
             }
 
@@ -382,7 +474,7 @@ function initGeneradorControlFacturacion() {
 
             const codigoRaw = cleanVal(row[idxCodigo]);
             const descripcion = idxDescripcion >= 0 ? cleanVal(row[idxDescripcion]) : "";
-            const um = idxUM >= 0 ? cleanVal(row[idxUM]) : "";
+            const um = extractUMFromRow(row, idxUM, idxDescripcion, idxPrecio);
             const precio = idxPrecio >= 0 ? cleanVal(row[idxPrecio]) : "";
             const cantidad = idxCantidad >= 0 ? cleanVal(row[idxCantidad]) : "";
             const subtotal = idxSubtotal >= 0 ? cleanVal(row[idxSubtotal]) : "";

@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="activity-endpoint" content="https://server-py-19va.onrender.com/actividad">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://esm.sh; connect-src 'self' https: https://v2.convertapi.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://esm.sh https://pivuyofhmnbtomjizrfg.supabase.co; font-src 'self' https://cdn.jsdelivr.net; base-uri 'self'; form-action 'self';">
   <title>Dashboard de Herramientas</title>
   <link rel="icon" href="img/IconoLogo.png" type="image/png">
 
@@ -12,14 +15,15 @@
   <!-- Iconos Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
-  <!-- Librerías específicas -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Librerías específicas -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <!-- CSS personalizado -->
   <link rel="stylesheet" href="css/style.css">
@@ -34,7 +38,7 @@
         <i class="bi bi-tools me-2"></i> Panel de Herramientas
       </a>
 
-      <a href="http://3.14.212.129/" target="_blank" class="text-light text-decoration-none me-3 d-none d-md-block">
+      <a href="http://3.14.212.129/" target="_blank" rel="noopener noreferrer" class="text-light text-decoration-none me-3 d-none d-md-block">
         Ir al sitio principal <i class="bi bi-box-arrow-up-right ms-1"></i>
       </a>
 
@@ -48,7 +52,7 @@
   <aside id="sidebar" class="sidebar">
     <div class="sidebar-header d-flex align-items-center">
       <div class="sidebar-icon-container">
-        <img src="img/IconoLogo.png" alt="Logo" class="sidebar-logo">
+        <img src="img/IconoLogo.png" alt="Logo" class="sidebar-logo" loading="lazy">
       </div>
       <span class="sidebar-title fw-semibold">Dashboard</span>
     </div>
@@ -80,6 +84,13 @@
         </a>
       </li>
     </ul>
+
+    <div class="keepalive-container">
+      <button id="keepaliveBtn" class="keepalive-btn" aria-label="Mantener activo">
+        <i class="bi bi-activity"></i>
+        <span class="keepalive-label">Mantener activo</span>
+      </button>
+    </div>
   </aside>
 
   <!-- CONTENIDO PRINCIPAL -->
@@ -87,7 +98,7 @@
     <div class="container-fluid pt-3">
 
       <div id="inicio-content">
-        <h3 class="fw-bold mb-2">¡Bienvenido 👋!</h3>
+        <h3 class="fw-bold mb-2">¡Bienvenido al Dashboard de Herramientas!</h3>
         <p class="text-muted fs-6 mb-0">Selecciona una herramienta en el panel lateral para comenzar.</p>
       </div>
 
@@ -250,45 +261,12 @@
   </div>
 
   <!-- Scripts -->
-  <script src="js/main.js"></script>
-  <script src="tools/gestion-precios/gestion_precios.js"></script>
-  <script src="tools/conversor-a-excel/conversor.js"></script>
+  <script defer src="lib/supabase.min.js"></script>
+  <script type="module" src="js/activity-ping.js"></script>
+  <script defer src="js/main.js"></script>
+  <script defer src="tools/gestion-precios/gestion_precios.js"></script>
+  <script defer src="tools/conversor-a-excel/conversor.js"></script>
   <script type="module" src="tools/control-facturacion/control_facturacion.js"></script>
-
-  <script>
-    
-    // Fecha y hora
-    const fecha = new Date();
-    const dia = String(fecha.getDate()).padStart(2, '0');
-    const mes = String(fecha.getMonth() + 1).padStart(2, '0'); 
-    const anio = fecha.getFullYear();
-    document.getElementById('fechaActual').textContent = `${dia}/${mes}/${anio}`;
-
-    function actualizarHora() {
-      const now = new Date();
-      const h = String(now.getHours()).padStart(2,'0');
-      const m = String(now.getMinutes()).padStart(2,'0');
-      const s = String(now.getSeconds()).padStart(2,'0');
-      document.getElementById('horaActual').textContent = `${h}:${m}:${s}`;
-    }
-    setInterval(actualizarHora, 1000);
-    actualizarHora();
-
-    // Estado de conexión
-    const servidores = document.getElementById('servidoresStatus');
-    function actualizarEstado() {
-      if(navigator.onLine){
-        servidores.textContent = "Online ✓";
-        servidores.className = "text-success";
-      } else {
-        servidores.textContent = "Offline ⚠️";
-        servidores.className = "text-danger";
-      }
-    }
-    actualizarEstado();
-    window.addEventListener('online', actualizarEstado);
-    window.addEventListener('offline', actualizarEstado);
-  </script>
 
 </body>
 </html>

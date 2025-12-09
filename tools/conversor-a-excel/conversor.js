@@ -48,13 +48,14 @@ function initConversorAExcel() {
     function actualizarArchivo(file) {
       if (file && file.type === "application/pdf") {
         selectedFile = file;
+        const safeName = escapeHTML(file.name);
         dzInner.innerHTML = `
           <div class="text-center py-3">
             <div class="mb-3">
               <i class="bi bi-file-earmark-pdf-fill" style="font-size: 3rem; color: ${accentColor};"></i>
             </div>
             <p class="fw-semibold mb-1" style="font-size: 1.1rem;">Archivo seleccionado:</p>
-            <p class="mb-2 fw-bold" style="color: ${accentColor};">${file.name}</p>
+            <p class="mb-2 fw-bold" style="color: ${accentColor};">${safeName}</p>
             <small class="text-muted">Arrastra otro archivo para reemplazarlo o haz clic nuevamente.</small>
           </div>`;
         convertBtn.disabled = false;
@@ -132,7 +133,6 @@ function initConversorAExcel() {
     async function convertirArchivo() {
       simulateProgress(async () => {
         try {
-          // 🔹 Mostrar alerta de carga
           mensajeCarga.classList.remove("d-none");
           mensajeExito.classList.add("d-none");
 
@@ -142,14 +142,23 @@ function initConversorAExcel() {
           formData.append("IncludeFormatting", "true");
           formData.append("SingleSheet", "true");
 
-          const token = "Bearer gzuRbsK8o7ckUe6SX5UYZ6DZ7eWbSlAd";
+          const token = await getConvertApiToken();
+          if (!token) {
+            alert("Debes proporcionar un token de ConvertAPI para continuar.");
+            return;
+          }
           const response = await fetch("https://v2.convertapi.com/convert/pdf/to/xlsx", {
             method: "POST",
-            headers: { Authorization: token },
+            headers: { Authorization: `Bearer ${token}` },
             body: formData,
           });
 
-          const result = await response.json();
+          let result;
+          try { result = await response.json(); } catch (_) { result = {}; }
+          if (!response.ok || !result || !result.Files || !result.Files[0] || !result.Files[0].Url) {
+            await handleTokenFailure(result);
+            return;
+          }
           const fileUrl = result.Files[0].Url;
           const fileName = result.Files[0].FileName || "ArchivoConvertido.xlsx";
 
@@ -244,3 +253,76 @@ document.querySelectorAll('[data-tool="conversorAExcel"]').forEach(link => {
 });
 
 window.initConversorAExcel = initConversorAExcel;
+
+function escapeHTML(str = "") {
+  return String(str).replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[c] || c);
+}
+
+async function supaClient() {
+  return window.SUPABASE_CLIENT || window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
+}
+
+async function fetchTokenFromSupabase() {
+  try {
+    const supa = await supaClient();
+    const { data, error } = await supa.from("convertapi_tokens").select("token,created_at").order("created_at", { ascending: false }).limit(1);
+    if (error) return "";
+    const row = (data && data[0]) || null;
+    return row ? row.token : "";
+  } catch (_) { return ""; }
+}
+
+async function saveTokenToSupabase(token) {
+  try {
+    const supa = await supaClient();
+    const { error } = await supa.from("convertapi_tokens").insert({ token });
+    return !error;
+  } catch (_) { return false; }
+}
+
+async function getConvertApiToken() {
+  const cached = sessionStorage.getItem("CONVERTAPI_TOKEN") || "";
+  if (cached) return cached;
+  const fromDb = await fetchTokenFromSupabase();
+  if (fromDb) {
+    sessionStorage.setItem("CONVERTAPI_TOKEN", fromDb);
+    return fromDb;
+  }
+  const input = prompt("Ingresa tu token de ConvertAPI");
+  const token = (input || "").trim();
+  if (token) {
+    sessionStorage.setItem("CONVERTAPI_TOKEN", token);
+    await saveTokenToSupabase(token);
+    return token;
+  }
+  return "";
+}
+
+async function handleTokenFailure(result) {
+  const alertas = document.getElementById("alertasConversor") || document.body;
+  const box = document.createElement("div");
+  box.className = "alert alert-danger d-flex justify-content-between align-items-center";
+  const msg = document.createElement("span");
+  msg.textContent = "La conversión falló: token inválido o expirado.";
+  const btn = document.createElement("button");
+  btn.className = "btn btn-sm btn-primary";
+  btn.textContent = "Cambiar token";
+  btn.onclick = async () => {
+    const input = prompt("Nuevo token de ConvertAPI");
+    const token = (input || "").trim();
+    if (!token) return;
+    sessionStorage.setItem("CONVERTAPI_TOKEN", token);
+    await saveTokenToSupabase(token);
+    box.className = "alert alert-success d-flex justify-content-between align-items-center";
+    msg.textContent = "Token actualizado";
+  };
+  box.appendChild(msg);
+  box.appendChild(btn);
+  alertas.appendChild(box);
+}
