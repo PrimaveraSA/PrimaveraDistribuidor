@@ -90,7 +90,7 @@
 }
 
 /* === Botones === */
-.btn {
+.tool-control-facturacion .btn {
   font-weight: 600;
   padding: 10px 22px;
   border-radius: 10px;
@@ -101,40 +101,40 @@
   letter-spacing: 0.3px;
 }
 
-.btn i { vertical-align: middle; }
+.tool-control-facturacion .btn i { vertical-align: middle; }
 
-.btn-primary {
+.tool-control-facturacion .btn-primary {
   background: linear-gradient(90deg, #0d6efd, #2a8bae);
   border: none;
   color: #fff;
 }
-.btn-primary:hover {
+.tool-control-facturacion .btn-primary:hover {
   background: linear-gradient(90deg, #0b5ed7, #1e7492);
   transform: translateY(-2px);
 }
 
-.btn-success {
+.tool-control-facturacion .btn-success {
   background: linear-gradient(90deg, #198754, #1ca05a);
   border: none;
   color: #fff;
 }
-.btn-success:hover {
+.tool-control-facturacion .btn-success:hover {
   transform: translateY(-2px);
 }
 
-.btn-outline-secondary {
+.tool-control-facturacion .btn-outline-secondary {
   background: #fff;
   border: 1px solid #6c757d;
   color: #495057;
   transition: all 0.25s ease-in-out;
 }
-.btn-outline-secondary:hover {
+.tool-control-facturacion .btn-outline-secondary:hover {
   background-color: #f0f0f0;
   color: #212529;
   transform: translateY(-1px);
 }
 
-.btn:disabled {
+.tool-control-facturacion .btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
@@ -277,18 +277,18 @@ td.actions-cell {
     border-radius: 4px;
     position: relative;
     transition: all 0.2s ease-in-out;
-    padding: 6px 8px;
+    padding: 6px 24px 6px 8px;
 }
 
-.locked-cell::after {
-    content: "🔒";
+/* Icono Bootstrap dentro de la celda */
+.cell-lock-icon {
     position: absolute;
-    right: 6px;
+    right: 8px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 14px;
-    opacity: 0.7;
+    font-size: 16px;
 }
+.locked-cell .cell-lock-icon { color: #e53935; opacity: 0.9; }
 
 .locked-cell.unlocked {
     background-color: #e7f5ff;
@@ -297,82 +297,106 @@ td.actions-cell {
     border: 1px solid #66c0ff;
 }
 
-.locked-cell.unlocked::after {
-    content: "🔓";
-    opacity: 0.8;
-}
+.locked-cell.unlocked .cell-lock-icon { color: #0eaa00; opacity: 1; }
+.unlocked-cell { position: relative; padding: 6px 24px 6px 8px; }
+.unlocked-cell .cell-lock-icon { color: #0eaa00; opacity: 1; }
 
 /* Modal personalizado */
 #passwordModal {
     display: none; 
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(3px);
     z-index: 10000;
     justify-content: center;
     align-items: center;
 }
 
 #passwordModal .modal-content {
-    background-color: #fff;
-    padding: 25px 30px;
-    border-radius: 12px;
-    max-width: 400px;
-    width: 90%;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    background: linear-gradient(180deg, #212529 0%, #2c3035 100%);
+    color: #e9ecef;
+    padding: 24px 26px;
+    border-radius: 14px;
+    max-width: 420px;
+    width: 92%;
+    box-shadow: 0 18px 34px rgba(0,0,0,0.45);
     text-align: center;
+    border: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+    overflow: hidden;
+}
+
+#passwordModal .modal-content::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 4px;
+    background: linear-gradient(90deg, #0d6efd, #20c997, #0d6efd);
+    background-size: 200% 100%;
+    animation: gradientMove 3s linear infinite;
 }
 
 #passwordModal h3 {
     font-size: 20px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     color: #0d6efd;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 
-#passwordModal input[type="password"] {
+#passwordModal h3::before { content: "🔒"; font-size: 1.1rem; }
+
+#passwordModal .password-group { position: relative; }
+#passwordModal .password-group input {
     width: 100%;
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid #ced4da;
-    margin-bottom: 20px;
+    padding: 12px 42px 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #3a3f44;
+    margin-bottom: 18px;
     font-size: 16px;
+    background: #2b3036;
+    color: #e9ecef;
 }
+#passwordModal .password-eye {
+    position: absolute;
+    right: 10px;
+    top:37%;
+    transform: translateY(-50%);
+    background: #2d3338;
+    color: #e9ecef;
+    border: 1px solid #3a3f44;
+    border-radius: 8px;
+    width: 34px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+#passwordModal .password-eye:hover { background: #343a40; }
 
 #passwordModal .modal-buttons {
     display: flex;
-    justify-content: flex-end;
-    gap: 10px;
+    justify-content: center;
+    gap: 12px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.08);
 }
 
 #passwordModal button {
-    padding: 8px 16px;
+    padding: 10px 18px;
     font-weight: 600;
-    border-radius: 8px;
+    border-radius: 10px;
     border: none;
     cursor: pointer;
     transition: all 0.2s ease-in-out;
 }
 
-#passwordModal button#modalCancel {
-    background-color: #e2e6ea;
-    color: #495057;
-}
+#passwordModal button#modalCancel { background-color: #6c757d; color: #fff; }
+#passwordModal button#modalCancel:hover { background-color: #5c636a; }
 
-#passwordModal button#modalCancel:hover {
-    background-color: #d6d8db;
-}
-
-#passwordModal button#modalConfirm {
-    background-color: #0d6efd;
-    color: #fff;
-}
-
-#passwordModal button#modalConfirm:hover {
-    background-color: #0b5ed7;
-}
+#passwordModal button#modalConfirm { background-color: #0d6efd; color: #fff; box-shadow: 0 4px 10px rgba(13,110,253,.25); }
+#passwordModal button#modalConfirm:hover { background-color: #0b5ed7; }
 
 
 /* === Responsivo === */

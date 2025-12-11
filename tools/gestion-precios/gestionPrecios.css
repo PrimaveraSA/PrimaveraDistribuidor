@@ -52,7 +52,7 @@
 }
 
 /* === Botones === */
-.btn {
+.tool-gestion-precios .btn {
   font-weight: 600;
   padding: 10px 20px;
   border-radius: 8px;
@@ -63,30 +63,30 @@
   letter-spacing: 0.3px;
 }
 
-.btn i { vertical-align: middle; }
+.tool-gestion-precios .btn i { vertical-align: middle; }
 
-.btn-primary {
+.tool-gestion-precios .btn-primary {
   background: linear-gradient(90deg, #0d6efd, #298BAE);
   border: none;
   color: #fff;
 }
-.btn-primary:hover {
+.tool-gestion-precios .btn-primary:hover {
   background: linear-gradient(90deg, #0b5ed7, #1e7492);
 }
 
-.btn-success {
+.tool-gestion-precios .btn-success {
   background: #198754 !important;
   border: none;
 }
-.btn-success:hover { background: #157347 !important; }
+.tool-gestion-precios .btn-success:hover { background: #157347 !important; }
 
-.btn-danger {
+.tool-gestion-precios .btn-danger {
   background: #dc3545 !important;
   border: none;
 }
-.btn-danger:hover { background: #bb2d3b !important; }
+.tool-gestion-precios .btn-danger:hover { background: #bb2d3b !important; }
 
-.btn:disabled {
+.tool-gestion-precios .btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
@@ -189,7 +189,7 @@
 /* === Responsivo === */
 @media (max-width: 768px) {
   .card-body p { font-size: 14px; }
-  .btn { display: block; width: 100%; margin-bottom: 10px; justify-content: center; }
+  .tool-gestion-precios .btn { display: block; width: 100%; margin-bottom: 10px; justify-content: center; }
 }
 
 @media (max-width: 480px) {

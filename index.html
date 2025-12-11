@@ -10,20 +10,20 @@
   <link rel="icon" href="img/IconoLogo.png" type="image/png">
 
   <!-- Bootstrap 5 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
-  <!-- Iconos Bootstrap -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="lib/bootstrap-5.3.3-dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="lib/bootstrap-icons-1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
 <!-- Librerías específicas -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script defer src="lib/exceljs.min.js"></script>
+  <script defer src="lib/jspdf/dist/jspdf.umd.min.js"></script>
+  <script defer src="lib/jszip/dist/jszip.min.js"></script>
+  <script defer src="lib/jspdf-autotable/dist/jspdf.plugin.autotable.min.js"></script>
+  <script defer src="lib/bootstrap-5.3.3-dist/js/bootstrap.bundle.min.js"></script>
 
   <!-- CSS personalizado -->
   <link rel="stylesheet" href="css/style.css">
@@ -64,24 +64,78 @@
         </a>
       </li>
       <li class="nav-item">
-        <a href="#" class="nav-link d-flex align-items-center" data-tool="inventarioPedidos">
-          <i class="bi bi-currency-dollar"></i><span>Control de Precios</span>
-        </a>
+        <div class="d-flex justify-content-between align-items-center">
+          <a href="#" class="nav-link d-flex align-items-center flex-grow-1 header-toggle" aria-expanded="false">
+            <i class="bi bi-cash-coin"></i><span>Gestión de Precios</span>
+          </a>
+          <button class="btn btn-sm btn-link text-light collapse-toggle" aria-expanded="false" aria-label="Toggle Submenu">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <ul class="nav flex-column submenu" style="display:none;">
+          <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center" data-tool="controlPreciosComparacion">
+              <i class="bi bi-sliders"></i><span>Comparación de Precios</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center" data-tool="controlPreciosPorcentajes">
+              <i class="bi bi-percent"></i><span>Ajustes por Porcentajes</span>
+            </a>
+          </li>
+          
+        </ul>
       </li>
       <li class="nav-item">
-        <a href="tools/control-facturacion/control_facturacion.html" class="nav-link d-flex align-items-center" data-tool="controlFacturacion">
-          <i class="bi bi-file-earmark-text"></i><span>Control de Registros</span>
-        </a>
+        <div class="d-flex justify-content-between align-items-center">
+          <a href="#" class="nav-link d-flex align-items-center flex-grow-1 header-toggle" aria-expanded="false">
+            <i class="bi bi-clipboard-data"></i><span>Registros y Reportes</span>
+          </a>
+          <button class="btn btn-sm btn-link text-light collapse-toggle" aria-expanded="false" aria-label="Toggle Submenu">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <ul class="nav flex-column submenu" style="display:none;">
+          <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center" data-tool="controlFacturacion">
+              <i class="bi bi-journal-text"></i><span>Control de Registros</span>
+            </a>
+          </li>
+        </ul>
       </li>
       <li class="nav-item">
-        <a href="tools/conversor-a-excel/conversor.html" class="nav-link d-flex align-items-center" data-tool="conversorAExcel">
-          <i class="bi bi-file-earmark-arrow-up"></i><span>Conversor a Excel</span>
-        </a>
+        <div class="d-flex justify-content-between align-items-center">
+          <a href="#" class="nav-link d-flex align-items-center flex-grow-1 header-toggle" aria-expanded="false">
+            <i class="bi bi-filetype-xlsx"></i><span>Conversión a Excel</span>
+          </a>
+          <button class="btn btn-sm btn-link text-light collapse-toggle" aria-expanded="false" aria-label="Toggle Submenu">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <ul class="nav flex-column submenu" style="display:none;">
+          <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center" data-tool="conversorAExcel">
+              <i class="bi bi-filetype-pdf"></i><span>PDF a Excel</span>
+            </a>
+          </li>
+        </ul>
       </li>
       <li class="nav-item">
-        <a href="tools/gestion-precios/gestion_precios.html" class="nav-link d-flex align-items-center" data-tool="gestionPrecios">
-          <i class="bi bi-box-seam"></i><span>Revisión de Inventario</span>
-        </a>
+        <div class="d-flex justify-content-between align-items-center">
+          <a href="#" class="nav-link d-flex align-items-center flex-grow-1 header-toggle" aria-expanded="false">
+            <i class="bi bi-box-seam"></i><span>Inventario y Stock</span>
+          </a>
+          <button class="btn btn-sm btn-link text-light collapse-toggle" aria-expanded="false" aria-label="Toggle Submenu">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+        <ul class="nav flex-column submenu" style="display:none;">
+          <li class="nav-item">
+            <a href="#" class="nav-link d-flex align-items-center" data-tool="gestionPrecios">
+              <i class="bi bi-bar-chart"></i><span>Comparar Stock</span>
+            </a>
+          </li>
+        </ul>
       </li>
     </ul>
 
@@ -92,13 +146,14 @@
       </button>
     </div>
   </aside>
+  <div id="sidebarOverlay" class="sidebar-overlay d-md-none" aria-hidden="true"></div>
 
   <!-- CONTENIDO PRINCIPAL -->
   <main id="main-content" class="main-content flex-grow-1">
     <div class="container-fluid pt-3">
 
       <div id="inicio-content">
-        <h3 class="fw-bold mb-2">¡Bienvenido al Dashboard de Herramientas!</h3>
+        <h3 class="fw-bold" style="color: #07436b;">¡Bienvenido a Herramientas Primavera!</h3>
         <p class="text-muted fs-6 mb-0">Selecciona una herramienta en el panel lateral para comenzar.</p>
       </div>
 
@@ -111,7 +166,7 @@
           <i class="bi bi-gear-wide-connected display-4 text-primary mb-2"></i>
           <h4 class="fw-semibold mb-1">Centro de Herramientas</h4>
           <p class="text-muted mb-0">
-            Utilidades complementarias para apoyar la gestión y mantenimiento de la plataforma principal.
+            Utilidades complementarias para apoyar la gestión y mantenimiento de la plataforma Primavera.
           </p>
         </div>
 
@@ -124,7 +179,7 @@
               <i class="bi bi-wrench-adjustable-circle display-5 text-primary mb-3"></i>
               <h5 class="fw-semibold">Herramientas Disponibles</h5>
               <p class="text-muted small mb-0">
-                Accede a módulos como gestión de precios, conversión de documentos y control de registros.
+                Accede a los diferentes módulos para registrar o apoyarse en actividades manuales
               </p>
             </div>
           </div>
@@ -134,7 +189,7 @@
               <i class="bi bi-journal-text display-5 text-success mb-3"></i>
               <h5 class="fw-semibold">Documentación</h5>
               <p class="text-muted small mb-0">
-                Encuentra guías rápidas, ejemplos y descripciones de uso para cada herramienta.
+                Sin documentacion por el momento.
               </p>
             </div>
           </div>
@@ -159,9 +214,10 @@
                 <h6 class="fw-semibold mb-0">Novedades Recientes</h6>
               </div>
               <ul class="list-unstyled mb-0 small text-muted">
+                <li class="mb-2"><i class="bi bi-dot text-primary"></i> Mejoras y Optimización Generales</li>
                 <li class="mb-2"><i class="bi bi-dot text-primary"></i> Optimización del módulo PDF → Excel.</li>
                 <li class="mb-2"><i class="bi bi-dot text-primary"></i> Nueva interfaz de gestión de precios.</li>
-                <li><i class="bi bi-dot text-primary"></i> Mejoras en compatibilidad móvil.</li>
+                <li class="mb-2"><i class="bi bi-dot text-primary"></i> Mejoras en compatibilidad móvil.</li>
               </ul>
             </div>
           </div>
@@ -174,7 +230,10 @@
               </div>
               <ul class="list-unstyled mb-0 small text-muted">
                 <li class="mb-2"><i class="bi bi-server text-secondary me-1"></i> Servidores Operativos: <strong id="servidoresStatus">Verificando...</strong></li>
-                <li class="mb-2"><i class="bi bi-check-circle text-success me-1"></i> Todas las herramientas activas.</li>
+                <li id="toolsStatusItem" class="mb-2">
+                  <i id="toolsStatusIcon" class="bi bi-check-circle text-success me-1"></i>
+                  <span id="toolsStatus">Todas las herramientas activas.</span>
+                </li>
                 <li class="mb-2"><i class="bi bi-clock-history text-secondary me-1"></i> Última actualización: <strong id="fechaActual"></strong>
                 <li class="mb-2"><i class="bi bi-clock text-secondary me-1"></i> Hora actual: <strong id="horaActual"></strong></li>
               </ul>

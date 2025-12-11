@@ -384,7 +384,7 @@ function renderTabla(data) {
    - Limpia el contenido anterior al cambiar de vista.
    ====================================================== */
 
-document.querySelectorAll('[data-tool]').forEach(link => {
+document.querySelectorAll('[data-tool="gestionPrecios"]').forEach(link => {
   link.addEventListener('click', e => {
     e.preventDefault();
 
@@ -411,11 +411,6 @@ document.querySelectorAll('[data-tool]').forEach(link => {
         </p>
       `;
 
-    } else {
-      // --- Si se cambia a otra herramienta o al inicio ---
-      titleContainer.innerHTML = '';
-      iframeContainer.innerHTML = '';
-      inicioContent.style.display = 'block';
     }
   });
 });

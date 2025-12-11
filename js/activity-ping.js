@@ -79,13 +79,15 @@ import { supabaseUrl, supabaseKey } from "./DB.js";
           .then(() => { console.log("[actividad] MANUAL OK", s.toString()); })
           .catch((err) => { console.warn("[actividad] MANUAL FAIL", s.toString(), String(err && err.message || err)); });
       }
-      const su = supabaseUrl || "";
-      if (su) {
-        const u = new URL("rest/v1/", su);
-        u.searchParams.set("ping", Date.now());
-        const img = new Image();
-        img.src = u.toString();
-        console.log("[supabase] keepalive SENT", u.toString());
+      if (!isServerEndpoint) {
+        const su = supabaseUrl || "";
+        if (su) {
+          const u = new URL("rest/v1/", su);
+          u.searchParams.set("ping", Date.now());
+          const img = new Image();
+          img.src = u.toString();
+          console.log("[supabase] keepalive SENT", u.toString());
+        }
       }
     } catch (_) {}
   }

@@ -1,0 +1,93 @@
+<link rel="stylesheet" href="tools/gestion-precios/gestionPrecios.css">
+
+<div class="container-fluid mt-4 px-4">
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-primary text-white d-flex align-items-center">
+      <i class="bi bi-percent me-2"></i>
+      <span class="fw-semibold">Ajustes por Porcentajes</span>
+    </div>
+    <div class="card-body">
+
+      <div class="row g-3 align-items-center mb-3">
+        <div class="col-lg-6">
+          <label class="form-label mb-1">Seleccionar archivo</label>
+          <input type="file" id="fileInput" accept=".xlsx,.xls" class="form-control">
+        </div>
+        <div class="col-lg-6 d-flex justify-content-lg-end justify-content-start gap-2 pt-3 pt-lg-0">
+          <button id="downloadPorcBtn" class="btn btn-success" disabled>
+            <i class="bi bi-cloud-download me-1"></i> Procesar Excel
+          </button>
+          <button id="clearPorcBtn" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Nuevo Archivo
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm border-primary">
+    <div class="card-header bg-light d-flex align-items-center">
+      <i class="bi bi-sliders me-2 text-success"></i>
+      <span class="fw-semibold">Reglas de Ajuste</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <label class="form-label mb-1">Marca</label>
+          <select id="marcaInput" class="form-select">
+            <option value="">Seleccione la Marca</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label mb-1">Línea (opcional)</label>
+          <select id="lineaInput" class="form-select">
+            <option value="">Seleccione la Línea (opcional)</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label mb-1">Unidad</label>
+          <select id="unidadInput" class="form-select">
+            <option value="">Selecciona la unidad de medida</option>
+            <option>UNIDAD</option>
+            <option>DOCENA</option>
+            <option>CIENTO</option>
+            <option>CAJÓN</option>
+            <option>BOX</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label mb-1">% Mayorista</label>
+          <input type="number" id="mayoristaInput" placeholder="% Mayorista" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label mb-1">% Especial</label>
+          <input type="number" id="especialInput" placeholder="% Especial" class="form-control">
+        </div>
+        <div class="col-md-6 d-flex align-items-end justify-content-md-end justify-content-start">
+          <button id="addRuleBtn" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> Agregar Regla
+          </button>
+        </div>
+      </div>
+
+      <div id="rulesList" class="mb-3">
+        <p class="text-muted">No hay reglas agregadas. Crea una regla para aplicar ajustes automáticamente.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-light d-flex align-items-center">
+      <i class="bi bi-table me-2"></i>
+      <span class="fw-semibold">Vista Previa</span>
+    </div>
+    <div class="card-body">
+      <div id="previewArea" class="table-responsive"></div>
+    </div>
+  </div>
+</div>
+
+<script defer src="lib/exceljs.min.js"></script>
+<script defer src="js/marcas.js"></script>
+<script defer src="tools/control-precios/porcentajes_only.js"></script>

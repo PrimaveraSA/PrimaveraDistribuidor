@@ -32,20 +32,20 @@ function initGeneradorControlFacturacion() {
         const facturaInput = document.getElementById("facturaManual");
         const proformaManual = document.getElementById("proformaManual");
 
-        // === 🔹 Validaciones iniciales ===
+        // === Validaciones iniciales ===
         if (!modeloFile || !maestroFile) {
             showToast("Por favor, selecciona ambos archivos Excel.", "error");
             return;
         }
 
-        // === 🔹 Leer ambos archivos Excel ===
+        // === Leer ambos archivos Excel ===
         const modeloData = await extractDataFromExcel(modeloFile);
         const maestroData = await extractDataFromExcel(maestroFile);
 
         const modeloText = (modeloData.rawText || (modeloData.rawCells || []).join(" ")).toString();
         const maestroText = (maestroData.rawText || (maestroData.rawCells || []).join(" ")).toString();
 
-        // === 🔹 Detectar proforma/SP automáticamente (priorizar SP) ===
+        // === Detectar proforma/SP automáticamente (priorizar SP) ===
         let proformaNumber =
             findSaldoProformaNumberInText(maestroText) ||
             findSaldoProformaNumberInText(modeloText) ||
@@ -60,7 +60,7 @@ function initGeneradorControlFacturacion() {
             proformaManual.value = proformaNumber;
         }
 
-        // === 🔹 Extraer datos de códigos y cliente ===
+        // === Extraer datos de códigos y cliente ===
         modeloCodes = modeloData.codes || [];
         maestroCodes = maestroData.codes || [];
 
@@ -81,14 +81,14 @@ function initGeneradorControlFacturacion() {
         };
         clienteData = mergeCliente(modeloData.clienteData, maestroData.clienteData);
 
-        // === 🔹 Validar número de factura ===
+        // === Validar número de factura ===
         const facturaNumber = facturaInput.value.trim();
         if (!facturaNumber) {
             showToast("Por favor, ingresa el número de factura.", "error");
             return;
         }
 
-        // === 🔹 Rellenar datos de cliente (si existen) ===
+        // === Rellenar datos de cliente (si existen) ===
         rellenarFormularioCliente(clienteData);
 
         // Guardar para PDF encabezados dinámicos
@@ -191,7 +191,7 @@ function initGeneradorControlFacturacion() {
 
 
     // ==========================
-    // 📝 Mostrar resultados en tabla
+    // Mostrar resultados en tabla
     // ==========================
     function mostrarResultados(faltantes) {
         const resultTableBody = document.querySelector("#resultTable tbody");
@@ -239,7 +239,10 @@ function initGeneradorControlFacturacion() {
             tdCantidad.addEventListener("input", () => recalcularSubtotal(row));
 
             const tdSubtotal = document.createElement("td");
-            tdSubtotal.textContent = item.subtotal || "0.00";
+            const subSpan = document.createElement("span");
+            subSpan.className = "cell-value";
+            subSpan.textContent = item.subtotal || "0.00";
+            tdSubtotal.appendChild(subSpan);
             makeCellLocked(tdSubtotal);
 
             const tdAcciones = document.createElement("td");
@@ -260,7 +263,7 @@ function initGeneradorControlFacturacion() {
     }
 
     // ==========================
-    // 📊 Extraer datos desde Excel
+    // Extraer datos desde Excel
     // ==========================
     async function extractDataFromExcel(file) {
     const data = await file.arrayBuffer();
@@ -274,7 +277,7 @@ function initGeneradorControlFacturacion() {
     };
 
     // ===============================
-    // 📌 1️⃣ CLIENTE DATA AUTOMÁTICO (Hoja 1)
+    // CLIENTE DATA AUTOMÁTICO (Hoja 1)
     // ===============================
     const firstSheetName = workbook.SheetNames[0];
     const firstSheet = workbook.Sheets[firstSheetName];
@@ -371,7 +374,7 @@ function initGeneradorControlFacturacion() {
     const clienteDataLocal = extracted;
 
     // ===============================
-    // 📌 2️⃣ PRODUCTOS (todas las hojas)
+    // PRODUCTOS (todas las hojas)
     // ===============================
     const allRaw = [];
     const cellsInfo = [];
@@ -589,7 +592,7 @@ function initGeneradorControlFacturacion() {
             if (regexSlash.test(valor) || regexISO.test(valor)) return;
 
             // Si no cumple → lo borra
-            console.warn(`⚠️ Fecha inválida detectada en ${inputId}:`, valor);
+            console.warn(`Fecha inválida detectada en ${inputId}:`, valor);
             input.value = "";
         });
     }
@@ -603,8 +606,9 @@ function initGeneradorControlFacturacion() {
     const cantidad = parseFloat(row.children[4].textContent) || 0;
     const subtotal = precio * cantidad;
 
-    // ✅ Mostrar sin .00 si es entero
-    row.children[5].textContent = Number.isInteger(subtotal)
+    const cell = row.children[5];
+    const target = cell.querySelector('.cell-value') || cell;
+    target.textContent = Number.isInteger(subtotal)
         ? subtotal.toString()
         : subtotal.toFixed(2);
     }
@@ -621,16 +625,34 @@ function initGeneradorControlFacturacion() {
     // ---------------------------
     // Mostrar modal y pedir contraseña
     // ---------------------------
-    function requestPasswordAndUnlockModal() {
-        return new Promise((resolve) => {
-            const modal = document.getElementById("passwordModal");
-            const input = document.getElementById("modalPassword");
-            const btnConfirm = document.getElementById("modalConfirm");
-            const btnCancel = document.getElementById("modalCancel");
+        function requestPasswordAndUnlockModal() {
+            return new Promise((resolve) => {
+                const modal = document.getElementById("passwordModal");
+                const input = document.getElementById("modalPassword");
+                const btnConfirm = document.getElementById("modalConfirm");
+                const btnCancel = document.getElementById("modalCancel");
 
-            input.value = ""; // limpiar input
-            modal.style.display = "flex";
-            input.focus();
+                input.value = ""; // limpiar input
+                modal.style.display = "flex";
+                input.focus();
+
+                // Envolver input con grupo y añadir botón ojo para mostrar/ocultar
+                if (!input.parentElement.classList.contains("password-group")) {
+                    const group = document.createElement("div");
+                    group.className = "password-group";
+                    input.parentNode.insertBefore(group, input);
+                    group.appendChild(input);
+                    const eyeBtn = document.createElement("button");
+                    eyeBtn.type = "button";
+                    eyeBtn.className = "password-eye";
+                    eyeBtn.innerHTML = '<i class="bi bi-eye"></i>';
+                    group.appendChild(eyeBtn);
+                    eyeBtn.addEventListener("click", () => {
+                        input.type = input.type === "password" ? "text" : "password";
+                        const icon = eyeBtn.querySelector("i");
+                        if (icon) icon.className = input.type === "password" ? "bi bi-eye" : "bi bi-eye-slash";
+                    });
+                }
 
             function closeModal(result) {
                 modal.style.display = "none";
@@ -672,6 +694,8 @@ function initGeneradorControlFacturacion() {
             td.contentEditable = "true";
             td.classList.add("unlocked-cell");
             td.classList.remove("locked-cell");
+            const ic = td.querySelector('.cell-lock-icon');
+            if (ic) ic.className = 'cell-lock-icon bi bi-unlock-fill';
         });
 
         globalUnlock.timeoutId = setTimeout(() => {
@@ -694,6 +718,8 @@ function initGeneradorControlFacturacion() {
             td.contentEditable = "false";
             td.classList.add("locked-cell");
             td.classList.remove("unlocked-cell");
+            const ic = td.querySelector('.cell-lock-icon');
+            if (ic) ic.className = 'cell-lock-icon bi bi-lock-fill';
         });
     }
 
@@ -703,12 +729,19 @@ function initGeneradorControlFacturacion() {
     function makeCellLocked(td) {
         td.contentEditable = "false";
         td.classList.add("locked-cell");
+        if (!td.querySelector('.cell-lock-icon')) {
+            const icon = document.createElement('i');
+            icon.className = 'cell-lock-icon bi bi-lock-fill';
+            td.appendChild(icon);
+        }
 
         td.addEventListener("click", async (e) => {
             if (globalUnlock.unlocked && Date.now() < globalUnlock.expiresAt) {
                 td.contentEditable = "true";
                 td.classList.add("unlocked-cell");
                 td.classList.remove("locked-cell");
+                const ic = td.querySelector('.cell-lock-icon');
+                if (ic) ic.className = 'cell-lock-icon bi bi-unlock-fill';
                 td.focus();
                 return;
             }
@@ -719,6 +752,8 @@ function initGeneradorControlFacturacion() {
                 td.contentEditable = "true";
                 td.classList.add("unlocked-cell");
                 td.classList.remove("locked-cell");
+                const ic = td.querySelector('.cell-lock-icon');
+                if (ic) ic.className = 'cell-lock-icon bi bi-unlock-fill';
                 td.focus();
             }
         });
@@ -761,7 +796,7 @@ function initGeneradorControlFacturacion() {
     }
 
     // ==========================
-    // 🆔 Formatear número con prefijo y ceros
+    //  Formatear número con prefijo y ceros
     // ==========================
     function formatearCodigo(contador) {
         const prefijo = "SP"; // <-- puedes cambiarlo (ej: "DOC", "CMP", "INV")
@@ -770,7 +805,7 @@ function initGeneradorControlFacturacion() {
     }
 
     // ==========================
-    // 🧾 Generar PDF con contador global desde Supabase
+    //  Generar PDF con contador global desde Supabase
     // ==========================
     downloadBtn.addEventListener("click", async () => {
     try {
@@ -1051,7 +1086,7 @@ function initGeneradorControlFacturacion() {
     });
 
     // ==========================================================
-    // 🔠 Número a letras (simple español)
+    // Número a letras (simple español)
     // ==========================================================
     function numeroALetras(num) {
     if (typeof num !== "number") num = parseFloat(num);
@@ -1130,11 +1165,11 @@ function initGeneradorControlFacturacion() {
     }
 
     backBtn.addEventListener("click", () => {
-        // 🔹 Limpiar tabla
+        // Limpiar tabla
         const resultTableBody = document.querySelector("#resultTable tbody");
         if (resultTableBody) resultTableBody.innerHTML = "";
 
-        // 🔹 Reiniciar paginación
+        // Reiniciar paginación
         const info = document.getElementById("infoPaginacion2");
         const numerosPaginas = document.getElementById("numerosPaginas2");
         const btnAnterior = document.getElementById("btnAnterior2");
@@ -1145,7 +1180,7 @@ function initGeneradorControlFacturacion() {
         if (btnAnterior) btnAnterior.disabled = true;
         if (btnSiguiente) btnSiguiente.disabled = true;
 
-        // 🔹 Forzar que el selector de filas vuelva a 50
+        //Forzar que el selector de filas vuelva a 50
         function forzarSelectorFilas50() {
             const selector = document.getElementById("rowsPerPage2");
             if (!selector) return;
@@ -1171,7 +1206,7 @@ function initGeneradorControlFacturacion() {
             }
         }
 
-        // 🔹 Limpiar inputs, selects y textareas
+        // Limpiar inputs, selects y textareas
         document.querySelectorAll("input, select, textarea").forEach(el => {
             // Texto, fecha y textarea
             if (["text", "date"].includes(el.type) || el.tagName === "TEXTAREA") {
@@ -1190,7 +1225,7 @@ function initGeneradorControlFacturacion() {
             newInput.value = "";
             el.parentNode.replaceChild(newInput, el);
 
-            // 🔁 Volver a registrar los listeners correctos
+            // Volver a registrar los listeners correctos
             if (oldId === "excelFile1") {
                 newInput.addEventListener("change", async (e) => {
                 const file = e.target.files[0];
@@ -1221,27 +1256,27 @@ function initGeneradorControlFacturacion() {
             }
         });
 
-        // 🔹 Restaurar selects con valores por defecto
+        // Restaurar selects con valores por defecto
         const pedidoSelect = document.getElementById("clientePedido");
         if (pedidoSelect) pedidoSelect.selectedIndex = 0;
 
         const tipoDocSelect = document.getElementById("tipoDocumento");
         if (tipoDocSelect) tipoDocSelect.selectedIndex = 0;
 
-        // 🔹 Ocultar toasts o modales
+        //Ocultar toasts o modales
         ["toastConexion", "toastDuplicado", "conexionModal"].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = "none";
         });
 
-        // 🔹 Subir al inicio
+        // Subir al inicio
         window.scrollTo({ top: 0, behavior: "smooth" });
 
         // 🧹 Reiniciar variables globales de numeración
         if (typeof facturaNumber !== "undefined") facturaNumber = "";
         if (typeof proformaNumber !== "undefined") proformaNumber = "";
 
-        // 🧩 Forzar selector y actualizar paginación
+        // Forzar selector y actualizar paginación
         forzarSelectorFilas50();
     });
 
@@ -1272,7 +1307,7 @@ function initGeneradorControlFacturacion() {
     }
 
     // ==========================
-    // 🔔 Función de Toast
+    // Función de Toast
     // ==========================
     function showToast(message, type = "info") {
     // Crear div si no existe
@@ -1310,7 +1345,7 @@ function initGeneradorControlFacturacion() {
     }
 
     // ==========================
-    // 🧹 Normalización de texto
+    // Normalización de texto
     // ==========================
     function normalizeForMatch(text) {
         if (!text && text !== 0) return "";
@@ -1327,7 +1362,7 @@ function initGeneradorControlFacturacion() {
     }
 
     // ==========================
-    // 🔍 Buscar número de proforma
+    // Buscar número de proforma
     // ==========================
     function findNumberByPrefixInText(rawText, prefix = "002") {
     if (!rawText) return "";
@@ -1390,7 +1425,7 @@ function initGeneradorControlFacturacion() {
     });
 
     // ==========================
-    // 📂 Detectar proforma al subir Excel
+    // Detectar proforma al subir Excel
     // ==========================
     document.getElementById("excelFile2").addEventListener("change", async (e) => {
     const file = e.target.files[0];
@@ -1411,14 +1446,14 @@ function initGeneradorControlFacturacion() {
     });
 
     // ==========================
-    // 📘 Leer SOLO FILA 1 + Cuadros de texto (shapes)
+    // Leer SOLO FILA 1 + Cuadros de texto (shapes)
     // ==========================
     async function leerSoloFila1YShapes(file) {
     const arrayBuffer = await file.arrayBuffer();
     const zip = await JSZip.loadAsync(arrayBuffer);
     let textoTotal = "";
 
-    // 1️⃣ Leer solo la fila 1 de cada hoja
+    // 1. Leer solo la fila 1 de cada hoja
     const data = new Uint8Array(arrayBuffer);
     const workbook = XLSX.read(data, { type: "array" });
 
@@ -1430,7 +1465,7 @@ function initGeneradorControlFacturacion() {
         }
     });
 
-    // 2️⃣ Leer cuadros de texto (shapes)
+    // 2. Leer cuadros de texto (shapes)
     const drawingFiles = Object.keys(zip.files).filter(f => f.match(/xl\/drawings\/drawing\d+\.xml$/));
     for (const fileName of drawingFiles) {
         try {
@@ -1448,7 +1483,7 @@ function initGeneradorControlFacturacion() {
 
 
     // ==========================
-    // 🔍 Buscar número de factura/boleta/NotaPedido
+    // Buscar número de factura/boleta/NotaPedido
     // ==========================
 
     function findFacturaNumber(rawText) {
@@ -1492,7 +1527,7 @@ function initGeneradorControlFacturacion() {
     });
 
     // ==========================
-    // 📂 Detectar factura/boleta/nota al subir Excel
+    // Detectar factura/boleta/nota al subir Excel
     // ==========================
     document.getElementById("excelFile1").addEventListener("change", async (e) => {
     const file = e.target.files[0];
@@ -1515,7 +1550,7 @@ function initGeneradorControlFacturacion() {
 }
 
 /* ======================================================
-   📊 CARGA DINÁMICA - Control de Registros
+   CARGA DINÁMICA - Control de Registros
    ====================================================== */
 document.querySelectorAll('[data-tool="controlFacturacion"]').forEach(link => {
   link.addEventListener("click", async e => {
@@ -1525,17 +1560,17 @@ document.querySelectorAll('[data-tool="controlFacturacion"]').forEach(link => {
     const titleContainer = document.getElementById("tool-title-container");
     const inicioContent = document.getElementById("inicio-content");
 
-    // 🧹 Limpieza previa
+    // Limpieza previa
     iframeContainer.innerHTML = "";
     titleContainer.innerHTML = "";
     if (inicioContent) inicioContent.style.display = "none";
 
-    // 🧼 Si existe función de limpieza anterior, ejecútala
+    // Si existe función de limpieza anterior, ejecútala
     if (typeof window.cleanupControlFacturacion === "function") {
       try { window.cleanupControlFacturacion(); } catch (err) { console.warn("Error limpiando Control Facturación:", err); }
     }
 
-    // 🏷️ Título y descripción
+    // Título y descripción
     titleContainer.innerHTML = `
       <div class="mb-4 text-start">
         <h3 class="fw-bold" style="color: #1a237e;">
@@ -1564,13 +1599,13 @@ document.addEventListener("click", (e) => {
     const tabla = document.querySelector("#resultSection");
     if (!tabla) return alert("No se encontró la tabla para imprimir.");
 
-    // 🧹 Clonamos la tabla para no afectar la original
+    // Clonamos la tabla para no afectar la original
     const tablaClonada = tabla.cloneNode(true);
 
-    // 🔍 Ocultar columna "ACC." (última columna)
+    // Ocultar columna "ACC." (última columna)
     tablaClonada.querySelectorAll("th:last-child, td:last-child").forEach(el => el.remove());
 
-    // 📏 Dimensiones de la ventana
+    // Dimensiones de la ventana
     const width = 900;
     const height = 650;
     const left = (window.screen.width / 2) - (width / 2);
@@ -1634,7 +1669,7 @@ document.addEventListener("click", (e) => {
 
 let paginaActual = 1;
 
-// 🧩 Esta función se ejecuta cada vez que cargas nuevos datos
+// Esta función se ejecuta cada vez que cargas nuevos datos
 function aplicarPaginacionTabla() {
   const tablaBody = document.getElementById("tablaBody2") || document.querySelector("#resultTable tbody");
   const selector = document.getElementById("rowsPerPage2");
@@ -1655,12 +1690,12 @@ function aplicarPaginacionTabla() {
   const inicio = (paginaActual - 1) * filasPorPagina;
   const fin = selector.value === "todos" ? totalFilas : inicio + filasPorPagina;
 
-  // 🔹 Mostrar solo las filas visibles
+  // Mostrar solo las filas visibles
   filas.forEach((fila, index) => {
     fila.style.display = index >= inicio && index < fin ? "" : "none";
   });
 
-  // 🔹 Texto informativo
+  // Texto informativo
   if (info) {
     info.textContent =
       totalFilas === 0
@@ -1668,7 +1703,7 @@ function aplicarPaginacionTabla() {
         : `Mostrando registros del ${inicio + 1} al ${Math.min(fin, totalFilas)} de un total de ${totalFilas}`;
   }
 
-  // 🔹 Construir botones de páginas
+  // Construir botones de páginas
   if (numerosPaginas) {
     numerosPaginas.innerHTML = "";
     const maxVisible = 5;
@@ -1687,7 +1722,7 @@ function aplicarPaginacionTabla() {
       pages.push(totalPaginas);
     }
 
-    // 🔸 Render de los botones
+    // Render de los botones
     pages.forEach((p) => {
       if (p === "...") {
         const span = document.createElement("span");
@@ -1707,7 +1742,7 @@ function aplicarPaginacionTabla() {
     });
   }
 
-  // 🔹 Botones de navegación
+  // Botones de navegación
   if (btnAnterior && btnSiguiente) {
     btnAnterior.disabled = paginaActual === 1;
     btnSiguiente.disabled = paginaActual === totalPaginas || totalPaginas === 0;
@@ -1728,7 +1763,7 @@ function aplicarPaginacionTabla() {
   }
 }
 
-// 🔄 Reinicia paginación al cambiar cantidad de filas
+// Reinicia paginación al cambiar cantidad de filas
 document.addEventListener("change", (e) => {
   if (e.target && e.target.id === "rowsPerPage2") {
     paginaActual = 1;
@@ -1736,8 +1771,8 @@ document.addEventListener("change", (e) => {
   }
 });
 
-// 🟢 Cada vez que termines de renderizar tus resultados de factura/proforma
-//     llama a esta función: aplicarPaginacionTabla();
+// Cada vez que termines de renderizar tus resultados de factura/proforma
+// lama a esta función: aplicarPaginacionTabla();
 document.addEventListener("DOMContentLoaded", () => {
   aplicarPaginacionTabla();
 });

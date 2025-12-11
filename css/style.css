@@ -45,7 +45,7 @@ body {
   color: #fff;
   box-shadow: 4px 0 20px rgba(0,0,0,0.35);
   border-right: 1px solid rgba(255,255,255,0.06);
-  transition: width 0.28s ease, box-shadow 0.28s ease;
+  transition: width 0.28s ease, box-shadow 0.28s ease, transform 0.28s ease;
   z-index: 1000;
   overflow: hidden;
   font-size: 0.85rem;
@@ -53,9 +53,11 @@ body {
 
 .sidebar.expanded { width: var(--sidebar-expanded); }
 
-.sidebar:hover {
-  width: var(--sidebar-expanded);
-  box-shadow: 8px 0 30px rgba(0,0,0,0.45);
+@media (min-width: 769px) {
+  .sidebar:hover {
+    width: var(--sidebar-expanded);
+    box-shadow: 8px 0 30px rgba(0,0,0,0.45);
+  }
 }
 
 .navbar a.text-light:hover {
@@ -101,6 +103,7 @@ body {
 .sidebar:hover .sidebar-title {
   opacity: 1;
 }
+.sidebar.mobile-open .sidebar-title { opacity: 1; }
 
 .sidebar .nav-link {
   display: flex;
@@ -130,6 +133,7 @@ body {
 .sidebar:hover .nav-link span {
   opacity: 1;
 }
+.sidebar.mobile-open .nav-link span { opacity: 1; }
 
 /* ---- Keepalive button in sidebar ---- */
 .keepalive-container {
@@ -157,6 +161,7 @@ body {
 
 .keepalive-label { opacity: 0; transition: opacity 0.25s; }
 .sidebar:hover .keepalive-label, .sidebar.expanded .keepalive-label { opacity: 1; }
+.sidebar.mobile-open .keepalive-label { opacity: 1; }
 
 .keepalive-btn:hover { background: rgba(255,255,255,0.08); color: #e9f0f2; }
 
@@ -340,8 +345,7 @@ body {
   font-family: "Segoe UI", sans-serif;
   animation: fadeOverlay 0.35s ease;
 }
-
-.modal-content {
+#conexionModal .modal-content {
   background: linear-gradient(180deg, #212529 0%, #2c3035 100%);
   color: #f1f1f1;
   padding: 2rem 1.8rem;
@@ -356,7 +360,7 @@ body {
 }
 
 /* Efecto decorativo: franja superior animada */
-.modal-content::before {
+#conexionModal .modal-content::before {
   content: "";
   position: absolute;
   top: 0;
@@ -368,7 +372,7 @@ body {
   animation: gradientMove 3s linear infinite;
 }
 
-.modal-content h3 {
+#conexionModal .modal-content h3 {
   font-size: 1.25rem;
   font-weight: 600;
   color: #0d6efd;
@@ -379,19 +383,19 @@ body {
   gap: 8px;
 }
 
-.modal-content h3::before {
+#conexionModal .modal-content h3::before {
   content: "📡";
   font-size: 1.4rem;
 }
 
-.modal-content p {
+#conexionModal .modal-content p {
   font-size: 0.95rem;
   color: #d1d1d1;
   line-height: 1.5;
   margin-bottom: 1.4rem;
 }
 
-.modal-content button {
+#conexionModal .modal-content button {
   background: #0d6efd;
   color: #fff;
   font-weight: 600;
@@ -403,13 +407,13 @@ body {
   box-shadow: 0 4px 10px rgba(13, 110, 253, 0.25);
 }
 
-.modal-content button:hover {
+#conexionModal .modal-content button:hover {
   background: #0b5ed7;
   box-shadow: 0 6px 14px rgba(13, 110, 253, 0.35);
   transform: translateY(-1px);
 }
 
-.modal-content button:disabled {
+#conexionModal .modal-content button:disabled {
   background: #6c757d;
   box-shadow: none;
   cursor: not-allowed;
@@ -477,28 +481,44 @@ body {
 ---- RESPONSIVE ----
 ------------------ */
 @media (max-width: 768px) {
+
   .sidebar {
-    width: 64px;
+    width: var(--sidebar-expanded);
+    transform: translateX(-100%);
+    box-shadow: 8px 0 30px rgba(0,0,0,0.45);
   }
-  .sidebar:hover {
-    width: 200px;
+  .sidebar.mobile-open {
+    transform: translateX(0);
   }
   .main-content {
-    margin-left: 64px;
+    margin-left: 0;
   }
-  .sidebar:hover ~ .main-content {
-    margin-left: 200px;
-  }
+  .sidebar:hover ~ .main-content { margin-left: 0; }
+  .sidebar.expanded ~ .main-content { margin-left: 0; }
   .main-footer {
-    margin-left: 64px;
+    margin-left: 0;
     flex-direction: column;
     text-align: center;
     gap: 0.5rem;
   }
+
+  .sidebar:hover ~ .main-footer { margin-left: 0; }
+  .sidebar.expanded ~ .main-footer { margin-left: 0; }
   .footer-right {
     white-space: normal;
   }
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 900;
+  }
+  .sidebar-overlay.show { display: block; }
+
 }
+
+body.mobile-locked { overflow: hidden; }
 
 /* === Animaciones === */
 @keyframes popIn {
@@ -527,34 +547,38 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
-/* ================================
-   MODAL CONVERSOR - DISEÑO MODERNO
-================================ */
-.conv_modal {
-  position: fixed;
-  inset: 0;
-  display: flex !important;
-  justify-content: center;
-  align-items: center;
-  z-index: 1055;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease;
-}
+/* ===== Token Modal (Bootstrap) ===== */
+#conv_tokenModal .modal-dialog { max-width: 480px; margin: 0 auto; display:flex; align-items:center; min-height: calc(100vh - var(--nav-height)); }
+#conv_tokenModal .modal-content { border-radius: 14px; box-shadow: 0 18px 34px rgba(0,0,0,0.45); background: linear-gradient(180deg, #212529 0%, #2c3035 100%); color:#e9ecef; overflow: hidden; border:1px solid rgba(255,255,255,0.06); }
+#conv_tokenModal .modal-content::before { content:""; position:absolute; top:0; left:0; width:100%; height:4px; background: linear-gradient(90deg, #b71c1c, #ff6f61, #b71c1c); background-size: 200% 100%; animation: gradientMove 3s linear infinite; }
+#conv_tokenModal .modal-header { background: linear-gradient(90deg, #b71c1c, #ff6f61); color:#fff; border-bottom: 1px solid rgba(255,255,255,0.12); padding: .8rem 1rem; }
+#conv_tokenModal .modal-title { display:flex; align-items:center; gap:8px; }
+#conv_tokenModal .modal-title::before { content:"🔒"; font-size:1.1rem; }
+#conv_tokenModal .modal-body { color:#ced4da; padding: 1.25rem 1rem; }
+#conv_tokenModal .input-group { border-radius:10px; overflow:hidden; }
+#conv_tokenModal .input-group .form-control { background:#2b3036; border-color:#3a3f44; color:#e9ecef; border-top-left-radius:10px; border-bottom-left-radius:10px; }
+#conv_tokenModal .input-group .form-control:focus { border-color:#e57373; box-shadow: 0 0 0 .15rem rgba(229, 115, 115, 0.25); }
+#conv_tokenModal .input-group .form-control::placeholder { color:#adb5bd; }
+#conv_tokenModal .input-group .btn { border-color:#3a3f44; color:#e9ecef; background:#2d3338; border-top-right-radius:10px; border-bottom-right-radius:10px; }
+#conv_tokenModal .input-group .btn:hover { background:#3a3f44; color:#fff; }
+#conv_tokenModal .btn { font-weight:600; }
+#conv_tokenModal .modal-footer { background:transparent; border-top:1px solid rgba(255,255,255,0.08); }
+#conv_tokenModal .btn-primary { background:#e53935; border-color:#e53935; box-shadow:0 4px 10px rgba(229,57,53,.25); }
+#conv_tokenModal .btn-primary:hover { background:#d32f2f; }
+#conv_tokenModal .btn-secondary { background:#6c757d; border-color:#6c757d; color:#fff; }
+#conv_tokenModal .btn-secondary:hover { background:#5c636a; }
+#conv_tokenModal .btn-close.btn-close-white { filter: brightness(0) invert(1); }
 
-.conv_modal.show {
-  opacity: 1;
-  pointer-events: auto;
-}
+/* Backdrop más elegante para modales Bootstrap */
+.modal-backdrop.show { background: rgba(0,0,0,0.35); backdrop-filter: none; }
 
-.conv_modal::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(3px);
-  z-index: -1;
-}
+/* ===== Guía de token visible ===== */
+.conv-token-guide { border-radius: 12px; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.12); border: 1px solid rgba(0,0,0,0.06); }
+.conv-token-guide.hidden { display: none; }
+.conv-token-header { background: linear-gradient(90deg, #b71c1c, #ff6f61); color:#fff; padding: .6rem .9rem; display:flex; align-items:center; }
+.conv-token-body { background: linear-gradient(180deg, #212529 0%, #2c3035 100%); color:#e9ecef; padding: .9rem; font-size: 14px; }
+.conv-token-body a { color:#ff6f61; text-decoration: underline; }
+.conv-token-body code { display:inline-block; background:#2b3036; color:#e9ecef; padding:.35rem .5rem; border-radius:8px; border:1px solid #3a3f44; margin-top:.25rem; }
 
 /* ===== Centrado del contenido ===== */
 .conv_modal-dialog {
@@ -569,27 +593,15 @@ body {
 .conv_modal-content {
   background: linear-gradient(180deg, #212529 0%, #2c3035 100%);
   color: #f1f1f1;
-  padding: 1.5rem 2rem;
+  padding: 1.2rem 1.6rem;
   border-radius: 12px;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
-  animation: modalPopIn 0.35s ease forwards;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
   text-align: center;
-  pointer-events: auto;
-  transform: scale(0.95);
 }
 
-@keyframes modalPopIn {
-  from {
-    transform: scale(0.85);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
+/* Eliminar animación personalizada para abrir más rápido */
 
 /* ===== Header ===== */
 .conv_modal-header {
@@ -779,3 +791,19 @@ body {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* ==== Sidebar submenus profesionales ==== */
+.sidebar .nav-link { text-decoration: none !important; }
+.sidebar .submenu { padding-left: 0; margin: 4px 0 6px; border-left: 3px solid rgba(255,255,255,0.6); border-radius: 0; background: transparent; box-shadow: none; }
+.sidebar .submenu .nav-link { font-size: 13px; opacity: 1; padding: 8px 12px; border-radius: 0; }
+.sidebar .submenu .nav-link:hover { background-color: rgba(255,255,255,0.08); color: #fff; }
+.sidebar .submenu .nav-link.active { background-color: rgba(255,255,255,0.10); color: #fff; }
+.sidebar .nav-link { padding: 8px 10px; font-size: 14px; }
+.sidebar .collapse-toggle { padding: 0 2px; }
+.sidebar .collapse-toggle i { transition: transform 0.2s ease; }
+/* Estado activo de encabezado sin barra lateral */
+.sidebar .nav-link.header-toggle.active { border-left: 0; }
+/* Resaltar fila completa (encabezado + chevron) cuando está activo */
+.sidebar .nav-item > .d-flex.activeRow { background-color: rgba(255,255,255,0.10); border-radius: 8px; }
+/* Acompañar el estilo del chevron dentro de la fila activa */
+.sidebar .collapse-toggle.active { background-color: rgba(255,255,255,0.10); border-radius: 8px; }
+/* Eliminado el resaltado del encabezado; la barra queda solo en el submenú */
