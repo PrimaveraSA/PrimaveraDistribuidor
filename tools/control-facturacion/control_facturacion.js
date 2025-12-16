@@ -127,6 +127,36 @@ function initGeneradorControlFacturacion() {
             if (/^UN(\.|IDAD|ID)?$/i.test(s) || /^UND$/i.test(s)) return "UNIDAD";
             return s;
         };
+        const extractUmFactor = (v) => {
+            const s = String(v || "").toUpperCase();
+            const m = s.match(/X\s*([\d.,]+)/i);
+            if (!m) return 1;
+            let num = String(m[1]).replace(/[^\d,.\-]/g, "");
+            num = num.includes(",") && !num.includes(".") ? num.replace(",", ".") : num.replace(/,/g, "");
+            const n = parseFloat(num);
+            return isNaN(n) || n <= 0 ? 1 : n;
+        };
+        const formatNum = (n) => {
+            if (!isFinite(n)) return "";
+            return (Math.round(n * 100) / 100).toFixed(2);
+        };
+        const eqWithin = (a, b, tol = 1e-2) => {
+            if (!isFinite(a) || !isFinite(b)) return String(a || "") === String(b || "");
+            return Math.abs(a - b) <= tol;
+        };
+        const parseNumber = (v) => {
+            if (v === null || v === undefined) return NaN;
+            let s = String(v).trim();
+            if (!s) return NaN;
+            s = s.replace(/[^\d,.\-]/g, "");
+            if ((s.match(/,/g) || []).length > 1 || (s.match(/\./g) || []).length > 1) {
+                s = s.replace(/,/g, "").replace(/\./g, ".");
+            } else {
+                s = s.replace(",", ".");
+            }
+            const n = parseFloat(s);
+            return isNaN(n) ? NaN : n;
+        };
 
         const modeloMap = new Map();
         modeloCodes.forEach(c => {
@@ -151,10 +181,10 @@ function initGeneradorControlFacturacion() {
                         codigo: a.codigo || b.codigo,
                         codigoNorm: k,
                         descripcion: a.descripcion || b.descripcion || "",
-                        um: ub,
-                        precio: b.precio || a.precio || "",
-                        cantidad: b.cantidad || a.cantidad || "",
-                        subtotal: b.subtotal || a.subtotal || "",
+                        um: a.um || ua,
+                        precio: a.precio || "",
+                        cantidad: a.cantidad || "",
+                        subtotal: a.subtotal || "",
                         _origen: "UM_DIFERENTE",
                         _um_modelo: ua,
                         _um_maestro: ub
@@ -163,7 +193,65 @@ function initGeneradorControlFacturacion() {
             }
         });
 
-        const merged = [...faltantesEnFactura, ...noRegistradosEnProforma, ...umDiferentes];
+        const valoresDiferentes = [];
+        modeloSet.forEach(k => {
+            if (maestroSet.has(k)) {
+                const a = modeloMap.get(k) || {};
+                const b = maestroMap.get(k) || {};
+                const ua = normalizeUM(a.um);
+                const ub = normalizeUM(b.um);
+                const pa = parseNumber(a.precio);
+                const pb = parseNumber(b.precio);
+                const ca = parseNumber(a.cantidad);
+                const cb = parseNumber(b.cantidad);
+                const sa = parseNumber(a.subtotal);
+                const sb = parseNumber(b.subtotal);
+                if (ua === ub) {
+                    const diffP = !eqWithin(pa, pb);
+                    const diffC = !eqWithin(ca, cb);
+                    const diffS = !eqWithin(sa, sb);
+                    if (diffP || diffC || diffS) {
+                        const cantidadDiff = isFinite(cb) && isFinite(ca) ? (cb - ca) : "";
+                        valoresDiferentes.push({
+                            codigo: a.codigo || b.codigo,
+                            codigoNorm: k,
+                            descripcion: a.descripcion || b.descripcion || "",
+                            um: a.um || "",
+                            precio: a.precio || "",
+                            cantidad: formatNum(cantidadDiff),
+                            subtotal: a.subtotal || "",
+                            _origen: "VALORES_DIFERENTES"
+                        });
+                    }
+                } else {
+                    const fF = extractUmFactor(ua);
+                    const fP = extractUmFactor(ub);
+                    const precioConv = isFinite(pb) ? pb * (fF / fP) : NaN;
+                    const cantidadConv = isFinite(cb) ? cb * (fP / fF) : NaN;
+                    const subtotalConv = (isFinite(precioConv) && isFinite(cantidadConv)) ? precioConv * cantidadConv : NaN;
+                    const diffP = !eqWithin(pa, precioConv);
+                    const diffC = !eqWithin(ca, cantidadConv);
+                    const diffS = !eqWithin(sa, subtotalConv);
+                    if (diffP || diffC || diffS) {
+                        const cantidadDiff = (isFinite(cantidadConv) && isFinite(ca)) ? (cantidadConv - ca) : "";
+                        valoresDiferentes.push({
+                            codigo: a.codigo || b.codigo,
+                            codigoNorm: k,
+                            descripcion: a.descripcion || b.descripcion || "",
+                            um: a.um || "",
+                            precio: a.precio || "",
+                            cantidad: formatNum(cantidadDiff),
+                            subtotal: a.subtotal || "",
+                            _origen: "VALORES_DIFERENTES_CONVERSION",
+                            _um_modelo: ua,
+                            _um_maestro: ub
+                        });
+                    }
+                }
+            }
+        });
+
+        const merged = [...valoresDiferentes, ...umDiferentes, ...faltantesEnFactura, ...noRegistradosEnProforma];
         const mapByCode = new Map();
         merged.forEach(item => {
             const key = normalizeLocal(item.codigoNorm || item.codigo || "");
@@ -185,7 +273,7 @@ function initGeneradorControlFacturacion() {
         if (selectorFilas) selectorFilas.value = "todos";
         aplicarPaginacionTabla();
 
-        const resumen = `Coinciden: ${coincidencias} | Faltan en Excel 1: ${noRegistradosEnProforma.length} | Faltan en Excel 2: ${faltantesEnFactura.length} | UM diferentes: ${umDiferentes.length} | Total a mostrar: ${faltantesTotales.length}`;
+        const resumen = `Coinciden: ${coincidencias} | Faltan en Excel 1: ${noRegistradosEnProforma.length} | Faltan en Excel 2: ${faltantesEnFactura.length} | UM diferentes: ${umDiferentes.length} | Valores diferentes: ${valoresDiferentes.length} | Total a mostrar: ${faltantesTotales.length}`;
         showToast(resumen, "info");
     });
 

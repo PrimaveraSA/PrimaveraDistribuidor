@@ -5,7 +5,7 @@
 // Se exporta una función para inicializar la herramienta
 function initGestionPrecios() {
 
-  // 📘 Leer Excel desde fila 2 como encabezado y fila 3 en adelante como datos
+  // Leer Excel desde fila 2 como encabezado y fila 3 en adelante como datos
   async function readExcelDesdeFila2(file) {
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: "array" });
@@ -30,7 +30,7 @@ function initGestionPrecios() {
     return row[colName.toLowerCase()] !== undefined ? row[colName.toLowerCase()] : "";
   }
 
-  // 📊 Comparar productos vs pedidos
+  // Comparar productos vs pedidos
   function compararPorCodigo(productos, pedidos) {
     const productosMap = new Map();
     productos.forEach(p => {
