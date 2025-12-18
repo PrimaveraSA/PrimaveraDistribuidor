@@ -1,10 +1,17 @@
 import { supabase } from "../../js/DB.js";
 
-function initGeneradorControlFacturacion() {
+    function initGeneradorControlFacturacion() {
 
-    if (window._controlFacturacionInicializado) return;
-    window._controlFacturacionInicializado = true;
+        if (window._controlFacturacionInicializado) return;
+        window._controlFacturacionInicializado = true;
 
+        resetExcelSequenceAll();
+        const toggleElInit = document.getElementById("multiCompareToggle");
+        if (toggleElInit) {
+            toggleElInit.addEventListener("change", () => {
+                if (!toggleElInit.checked) resetExcelSequenceAll();
+            });
+        }
     const compareBtn = document.getElementById("compareBtn");
     const resultTable = document.querySelector("#resultTable tbody");
     const downloadBtn = document.getElementById("downloadBtn");
@@ -194,6 +201,7 @@ function initGeneradorControlFacturacion() {
         });
 
         const valoresDiferentes = [];
+        const itemsCoinciden = [];
         modeloSet.forEach(k => {
             if (maestroSet.has(k)) {
                 const a = modeloMap.get(k) || {};
@@ -222,6 +230,8 @@ function initGeneradorControlFacturacion() {
                             subtotal: a.subtotal || "",
                             _origen: "VALORES_DIFERENTES"
                         });
+                    } else {
+                        itemsCoinciden.push(b);
                     }
                 } else {
                     const fF = extractUmFactor(ua);
@@ -246,6 +256,8 @@ function initGeneradorControlFacturacion() {
                             _um_modelo: ua,
                             _um_maestro: ub
                         });
+                    } else {
+                        itemsCoinciden.push(b);
                     }
                 }
             }
@@ -275,8 +287,14 @@ function initGeneradorControlFacturacion() {
 
         const resumen = `Coinciden: ${coincidencias} | Faltan en Excel 1: ${noRegistradosEnProforma.length} | Faltan en Excel 2: ${faltantesEnFactura.length} | UM diferentes: ${umDiferentes.length} | Valores diferentes: ${valoresDiferentes.length} | Total a mostrar: ${faltantesTotales.length}`;
         showToast(resumen, "info");
-    });
 
+        try {
+            window.__lastMaestroFile = maestroFile;
+            window.__lastMaestroData = maestroData;
+            window.__lastItemsCoincidenSet = new Set(itemsCoinciden.map(x => normalizeCodigo(x.codigoNorm || x.codigo || "")));
+        } catch (e) {}
+
+    });
 
     // ==========================
     // Mostrar resultados en tabla
@@ -614,6 +632,357 @@ function initGeneradorControlFacturacion() {
     return { clienteData: clienteDataLocal, codes, rawCells: allRaw, rawText, cellsInfo };
     }
 
+    async function generarProformaActualizadaExcel(maestroFile, maestroData, matchedSet, fileNameOverride) {
+        if (!maestroFile || !maestroData || !(matchedSet instanceof Set)) return;
+        if (window.__descargandoModelo) return;
+        window.__descargandoModelo = true;
+        const cv = (v) => (v || v === 0) ? String(v).trim() : "";
+        const pedidosel = document.getElementById("clientePedido");
+        const pedidoVal = pedidosel ? pedidosel.value.trim() : (clienteData?.pedido || "");
+        const razonVal = (document.getElementById("clienteRazon")?.value?.trim()) || (clienteData?.razon || "");
+        const dniVal = (document.getElementById("clienteDNI")?.value?.trim()) || (clienteData?.dni || "");
+        const dirVal = (document.getElementById("clienteDireccion")?.value?.trim()) || (clienteData?.direccion || "");
+        const refVal = (document.getElementById("clienteReferencia")?.value?.trim()) || (clienteData?.referencia || "");
+        const fecEmVal = (document.getElementById("clienteFecEmision")?.value?.trim()) || (clienteData?.fecEmision || "");
+        const fecEnVal = (document.getElementById("clienteFecEntrega")?.value?.trim()) || (clienteData?.fecEntrega || "");
+        const matchedItems = (maestroData.codes || []).filter(c => matchedSet.has(normalizeCodigo(c.codigoNorm || c.codigo || "")));
+        const tplPathCandidates = [
+            "tools/control-facturacion/modelo-proforma-excel/Modelo-Proforma.xlsx",
+            "./tools/control-facturacion/modelo-proforma-excel/Modelo-Proforma.xlsx"
+        ];
+        let useExcelJS = false;
+        let tplBuffer = null;
+        for (const p of tplPathCandidates) {
+            try {
+                const res = await fetch(p);
+                if (res.ok) { tplBuffer = await res.arrayBuffer(); useExcelJS = true; break; }
+            } catch (e) {}
+        }
+        let workbook;
+        if (!useExcelJS) {
+            const data = await maestroFile.arrayBuffer();
+            workbook = XLSX.read(data, { type: "array" });
+        }
+        if (!useExcelJS) {
+            for (const sheetName of workbook.SheetNames) {
+                const sheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                const up = (s) => cv(s).toUpperCase();
+                const isHeaderRow = (rowArr) => {
+                    const rowU = (rowArr || []).map(h => up(h));
+                    const hasItem = rowU.some(h => /\bITEM\b/.test(h));
+                    const hasCod = rowU.some(h => /\bCOD\b|\bCÓD\b|\bCÓDIGO\b|\bCODIGO\b/.test(h));
+                    const hasDes = rowU.some(h => /DESCRIP|DESCRIPCIÓN|DESCRIPCION|\bDES\b/.test(h));
+                    const hasUM = rowU.some(h => /\bUM\b|U\/?M/.test(h));
+                    const hasPrecio = rowU.some(h => /PRECIO|P\.?\s*UNIT/.test(h));
+                    const hasCant = rowU.some(h => /\bCANT(IDAD)?\b/.test(h));
+                    const hasSub = rowU.some(h => /SUB\s*TOTAL|SUBTOTAL/.test(h));
+                    return hasItem && hasCod && hasDes && hasUM && hasPrecio && hasCant && hasSub;
+                };
+                let headerIdx = -1;
+                let colItem = -1, colCod = -1, colDes = -1, colUM = -1, colPrecio = -1, colCant = -1, colSub = -1;
+                for (let r = 0; r < jsonData.length; r++) {
+                    const row = jsonData[r] || [];
+                    if (isHeaderRow(row)) {
+                        headerIdx = r;
+                        const headers = (row || []).map(h => up(h));
+                        const findIdx = (re, fallback) => {
+                            const i = headers.findIndex(h => re.test(h.replace(/[\s\.;:_-]+/g, " ")));
+                            return i >= 0 ? i : headers.findIndex(h => (h || "").includes(fallback));
+                        };
+                        colItem = findIdx(/\bITEM\b/, "ITEM");
+                        colCod = findIdx(/\b(COD|CÓD|CÓDIGO|CODIGO)\b/, "COD");
+                        colDes = findIdx(/DESCRIP|DESCRIPCIÓN|DESCRIPCION|\bDES\b/, "DES");
+                        colUM = findIdx(/\bUM\b|U\/?M/, "UM");
+                        colPrecio = findIdx(/P\.?\s*UNIT|PRECIO/, "PRECIO");
+                        colCant = findIdx(/\bCANT(IDAD)?\b/, "CANT");
+                        colSub = findIdx(/SUB\s*TOTAL|SUBTOTAL/, "SUB");
+                        break;
+                    }
+                }
+                for (let r = 0; r < Math.min(jsonData.length, 60); r++) {
+                    const row = jsonData[r] || [];
+                    for (let c = 0; c < Math.min(row.length, 14); c++) {
+                        const cell = up(row[c]);
+                        if (/RAZON\s*SOCIAL/.test(cell)) { row[c + 1] = razonVal; }
+                        if (/DNI\s*\/\s*RUC|DNI|RUC/.test(cell)) {
+                            const d = String(dniVal || "").replace(/[^\d]/g, "");
+                            row[c + 1] = (d && /^\d+$/.test(d)) ? parseInt(d, 10) : dniVal;
+                        }
+                        if (/DIRECCI[ÓO]N(?!\s*ENTREGA)/.test(cell)) { row[c + 1] = dirVal; }
+                        if (/REFERENCIA/.test(cell)) { row[c + 1] = refVal; }
+                        if (/FEC\.?\s*EMISI[ÓO]N/.test(cell)) { row[c + 1] = fecEmVal; }
+                        if (/FEC\.?\s*ENTREGA/.test(cell)) { row[c + 1] = fecEnVal; }
+                        if (/PEDIDO/.test(cell)) { row[c + 1] = pedidoVal; }
+                        if (/PROFORMA\s+DE\s+VENTA/.test(cell)) {
+                            const nextC = Math.min(row.length - 1, c + 2);
+                            row[nextC] = `N° ${proformaNumber || ""}`;
+                        }
+                    }
+                }
+                if (headerIdx >= 0) {
+                    const startRow = headerIdx + 1;
+                    const need = matchedItems.length;
+                    let r = startRow;
+                    for (let i = 0; i < need; i++, r++) {
+                        jsonData[r] = jsonData[r] || [];
+                        if (colItem >= 0) jsonData[r][colItem] = i + 1;
+                        const it = matchedItems[i];
+                        if (colCod >= 0) {
+                            const digits = String(it.codigo || "").replace(/[^\d]/g, "");
+                            jsonData[r][colCod] = (digits && /^\d+$/.test(digits)) ? parseInt(digits, 10) : cv(it.codigo);
+                        }
+                        if (colDes >= 0) jsonData[r][colDes] = cv(it.descripcion);
+                        if (colUM >= 0) jsonData[r][colUM] = cv(it.um);
+                        if (colPrecio >= 0) jsonData[r][colPrecio] = cv(it.precio);
+                        if (colCant >= 0) jsonData[r][colCant] = cv(it.cantidad);
+                        if (colSub >= 0) jsonData[r][colSub] = cv(it.subtotal);
+                    }
+                }
+                const newSheet = XLSX.utils.aoa_to_sheet(jsonData);
+                workbook.Sheets[sheetName] = newSheet;
+            }
+            const nombre = fileNameOverride || "Proforma.xlsx";
+            XLSX.writeFile(workbook, nombre);
+        } else {
+            const ExcelJS = window.ExcelJS;
+            const wb = new ExcelJS.Workbook();
+            await wb.xlsx.load(new Uint8Array(tplBuffer));
+            const ws = wb.worksheets[0];
+            const textOf = (v) => (v == null ? "" : String(v));
+            const findCell = (re) => {
+                for (let r = 1; r <= ws.rowCount; r++) {
+                    const row = ws.getRow(r);
+                    for (let c = 1; c <= row.cellCount; c++) {
+                        const val = textOf(row.getCell(c).value).toUpperCase();
+                        if (re.test(val)) return { r, c };
+                    }
+                }
+                return null;
+            };
+            const setRight = (labelRe, val) => {
+                const pos = findCell(labelRe);
+                if (!pos) return;
+                const row = ws.getRow(pos.r);
+                const targetCell = row.getCell(pos.c + 1);
+                targetCell.value = val || "";
+            };
+            setRight(/RAZON\s*SOCIAL/i, razonVal);
+            const dniDigitsRight = String(dniVal || "").replace(/[^\d]/g, "");
+            setRight(/DNI\s*\/\s*RUC|DNI|RUC/i, (dniDigitsRight && /^\d+$/.test(dniDigitsRight)) ? parseInt(dniDigitsRight, 10) : dniVal);
+            setRight(/DIRECCI[ÓO]N(?!\s*ENTREGA)/i, dirVal);
+            setRight(/REFERENCIA/i, refVal);
+            setRight(/FEC\.?\s*EMISI[ÓO]N/i, fecEmVal);
+            setRight(/FEC\.?\s*ENTREGA/i, fecEnVal);
+            setRight(/PEDIDO/i, pedidoVal);
+            const proformaPos = findCell(/PROFORMA\s+DE\s+VENTA/i);
+            if (proformaPos) {
+                const row = ws.getRow(proformaPos.r + 1);
+                const target = row.getCell(proformaPos.c + 1);
+                target.value = `N° ${proformaNumber || ""}`;
+            }
+            const headerRowIdx = (() => {
+                for (let r = 1; r <= ws.rowCount; r++) {
+                    const row = ws.getRow(r);
+                    const texts = [];
+                    for (let c = 1; c <= row.cellCount; c++) texts.push(textOf(row.getCell(c).value).toUpperCase());
+                    const hasItem = texts.some(t => /\bITEM\b/.test(t));
+                    const hasCod = texts.some(t => /\bCOD\b|\bCÓD\b|\bCÓDIGO\b|\bCODIGO\b/.test(t));
+                    const hasDes = texts.some(t => /DESCRIPCION|DESCRIPCIÓN|DESCRIP|DES\b/.test(t));
+                    const hasUm = texts.some(t => /\bUM\b/.test(t));
+                    const hasPrecio = texts.some(t => /PRECIO|P\.?\s*UNIT/.test(t));
+                    const hasCant = texts.some(t => /\bCANT\b|CANTIDAD/.test(t));
+                    const hasSub = texts.some(t => /SUB\s*TOTAL|SUBTOTAL/.test(t));
+                    if (hasItem && hasCod && hasDes && hasUm && hasPrecio && hasCant && hasSub) return r;
+                }
+                return -1;
+            })();
+            const headerIndexes = (row) => {
+                const mapIdx = (re) => {
+                    for (let c = 1; c <= row.cellCount; c++) {
+                        const v = textOf(row.getCell(c).value).toUpperCase();
+                        if (re.test(v)) return c;
+                    }
+                    return -1;
+                };
+                return {
+                    item: mapIdx(/\bITEM\b/),
+                    cod: mapIdx(/\bCOD\b|\bCÓD\b|\bCÓDIGO\b|\bCODIGO\b/),
+                    des: mapIdx(/DESCRIPCION|DESCRIPCIÓN|DESCRIP|DES\b/),
+                    um: mapIdx(/\bUM\b/),
+                    precio: mapIdx(/PRECIO|P\.?\s*UNIT/),
+                    cant: mapIdx(/\bCANT\b|CANTIDAD/),
+                    sub: mapIdx(/SUB\s*TOTAL|SUBTOTAL/)
+                };
+            };
+            let itemsToFill = matchedItems;
+            if (!itemsToFill || itemsToFill.length === 0) itemsToFill = maestroData.codes || [];
+            const mapRow10 = { item: 1, cod: 2, des: 3, um: 6, precio: 7, cant: 9, sub: 11 };
+            const fillByIdx = (idx, startR) => {
+                const toNum = (v) => {
+                    if (v === null || v === undefined) return NaN;
+                    let s = String(v).trim();
+                    s = s.replace(/[^\d,.\-]/g, "");
+                    if ((s.match(/,/g) || []).length > 1 || (s.match(/\./g) || []).length > 1) {
+                        s = s.replace(/,/g, "").replace(/\./g, ".");
+                    } else {
+                        s = s.replace(",", ".");
+                    }
+                    const n = parseFloat(s);
+                    return isFinite(n) ? n : NaN;
+                };
+                let r = startR;
+                for (let i = 0; i < itemsToFill.length; i++, r++) {
+                    const it = itemsToFill[i];
+                    const row = ws.getRow(r);
+                    if (idx.item > 0) row.getCell(idx.item).value = i + 1;
+                    if (idx.cod > 0) {
+                        const cell = row.getCell(idx.cod);
+                        const rawCode = String(it.codigo || "");
+                        const digits = rawCode.replace(/[^\d]/g, "");
+                        if (digits && /^\d+$/.test(digits)) {
+                            if (/^0/.test(rawCode)) {
+                                cell.value = "\u200B" + digits;
+                                cell.numFmt = "@";
+                            } else {
+                                cell.value = parseInt(digits, 10);
+                                cell.numFmt = "0";
+                            }
+                        } else {
+                            cell.value = cv(it.codigo);
+                        }
+                    }
+                    if (idx.des > 0) row.getCell(idx.des).value = cv(it.descripcion);
+                    if (idx.um > 0) row.getCell(idx.um).value = cv(it.um);
+                    if (idx.precio > 0) {
+                        const cell = row.getCell(idx.precio);
+                        const n = toNum(it.precio);
+                        cell.value = isFinite(n) ? n : 0;
+                        cell.numFmt = "#,##0.00";
+                    }
+                    if (idx.cant > 0) {
+                        const cell = row.getCell(idx.cant);
+                        const n = toNum(it.cantidad);
+                        cell.value = isFinite(n) ? n : 0;
+                        cell.numFmt = "#,##0.00";
+                    }
+                    if (idx.sub > 0) {
+                        const cell = row.getCell(idx.sub);
+                        const n = toNum(it.subtotal);
+                        cell.value = isFinite(n) ? n : 0;
+                        cell.numFmt = "#,##0.00";
+                    }
+                    for (let c = 1; c <= 11; c++) {
+                        const cell = row.getCell(c);
+                        cell.font = { name: "Arial", size: 7 };
+                        cell.alignment = { vertical: "top", horizontal: (c === 9 || c === 10) ? "center" : undefined };
+                    }
+                    row.getCell(1).alignment = { vertical: "top", horizontal: "center" };
+                    row.getCell(2).alignment = { vertical: "top", horizontal: "center" };
+                    row.commit();
+                }
+                // Ocultar filas no usadas para evitar bloque gris
+                const lastDataRow = startR + itemsToFill.length - 1;
+                for (let rr = lastDataRow + 1; rr <= 718; rr++) {
+                    const row = ws.getRow(rr);
+                    row.hidden = true;
+                    row.commit();
+                }
+            };
+            const baseRow = 10;
+            if (headerRowIdx > 0) {
+                const hdrRow = ws.getRow(headerRowIdx);
+                const idxDetected = headerIndexes(hdrRow);
+                const idx = {
+                    item: idxDetected.item > 0 ? idxDetected.item : mapRow10.item,
+                    cod: idxDetected.cod > 0 ? idxDetected.cod : mapRow10.cod,
+                    des: idxDetected.des > 0 ? idxDetected.des : mapRow10.des,
+                    um: idxDetected.um > 0 ? idxDetected.um : mapRow10.um,
+                    precio: idxDetected.precio > 0 ? idxDetected.precio : mapRow10.precio,
+                    cant: idxDetected.cant > 0 ? idxDetected.cant : mapRow10.cant,
+                    sub: idxDetected.sub > 0 ? idxDetected.sub : mapRow10.sub
+                };
+                fillByIdx(idx, headerRowIdx + 1);
+            } else {
+                fillByIdx(mapRow10, baseRow + 1);
+                const setValLeft = (rowIndex, value) => {
+                    const row = ws.getRow(rowIndex);
+                    row.getCell(4).value = value || ""; // Columna D para valores del bloque izquierdo
+                    row.commit();
+                };
+                setValLeft(3, razonVal);
+                setValLeft(4, dniVal);
+                setValLeft(5, dirVal);
+                setValLeft(7, refVal);
+                const dniCell = ws.getRow(4).getCell(4);
+                const dniDigits = String(dniVal || "").replace(/[^\d]/g, "");
+                if (dniDigits) {
+                    const n = parseFloat(dniDigits);
+                    if (isFinite(n)) {
+                        dniCell.value = n;
+                        dniCell.numFmt = "0";
+                    }
+                }
+                ws.getRow(3).getCell(11).value = fecEmVal || "";  // K3
+                ws.getRow(5).getCell(11).value = fecEnVal || "";  // K5
+                ws.getRow(7).getCell(11).value = pedidoVal || ""; // K7
+                const pedLabel = ws.getRow(7).getCell(10);
+                pedLabel.font = { name: "Arial", size: 7 };
+                pedLabel.alignment = { vertical: "top" };
+                const pedCell = ws.getRow(7).getCell(11);
+                pedCell.font = { name: "Arial", size: 7 };
+                pedCell.alignment = { vertical: "top" };
+                ws.getRow(7).commit();
+            }
+            // Asegurar posiciones explícitas siempre, incluso si se detectó encabezado
+            ws.getRow(3).getCell(11).value = fecEmVal || "";  // K3
+            ws.getRow(5).getCell(11).value = fecEnVal || "";  // K5
+            ws.getRow(7).getCell(11).value = pedidoVal || ""; // K7
+            const pedLabel2 = ws.getRow(7).getCell(10);
+            pedLabel2.font = { name: "Arial", size: 7 };
+            pedLabel2.alignment = { vertical: "top" };
+            const pedCell2 = ws.getRow(7).getCell(11);
+            pedCell2.font = { name: "Arial", size: 7 };
+            pedCell2.alignment = { vertical: "top" };
+            ws.getRow(7).commit();
+            const buffer = await wb.xlsx.writeBuffer();
+            let zipNew = await JSZip.loadAsync(buffer);
+            const zipTpl = await JSZip.loadAsync(tplBuffer);
+            const drawingFiles = Object.keys(zipTpl.files).filter(f => f.match(/xl\/drawings\/drawing\d+\.xml$/));
+            for (const df of drawingFiles) {
+                let xml = await zipTpl.file(df).async("text");
+                let suf = "";
+                if (typeof proformaNumber === "string" && proformaNumber) {
+                    const m = proformaNumber.match(/^0?02-(.+)$/i);
+                    suf = m ? m[1] : proformaNumber;
+                }
+                if (!suf && maestroData?.rawText) {
+                    const m2 = String(maestroData.rawText).match(/0?02-\s*([A-Za-z0-9\-]+)/i);
+                    suf = m2 ? m2[1] : "";
+                }
+                if (suf) {
+                    xml = xml.replace(/(<a:t>\s*N[º°]?\s*0?02-\s*)(<\/a:t>)/i, `$1${suf}$2`);
+                    xml = xml.replace(/(<a:t>\s*0?02-\s*)(<\/a:t>)/i, `$1${suf}$2`);
+                    xml = xml.replace(/(N[º°]?\s*0?02-\s*)(?=<\/a:t>)/i, `$1${suf}`);
+                    xml = xml.replace(/(<a:t>\s*N[º°]?\s*<\/a:t>\s*<a:t>\s*0?02-\s*)(<\/a:t>)/i, `$1${suf}$2`);
+                    xml = xml.replace(/(<a:t>\s*0?02-\s*<\/a:t>\s*<a:t>\s*)(<\/a:t>)/i, `$1${suf}$2`);
+                }
+                if (zipNew.file(df)) {
+                    zipNew.remove(df);
+                }
+                zipNew.file(df, xml);
+            }
+            const finalBlob = await zipNew.generateAsync({ type: "blob" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(finalBlob);
+            a.download = fileNameOverride || "Modelo-Proforma.xlsx";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+        }
+        setTimeout(() => { window.__descargandoModelo = false; }, 800);
+    }
     function toISODate(fecha) {
         if (!fecha) return "";
         // Ya en formato correcto
@@ -893,6 +1262,43 @@ function initGeneradorControlFacturacion() {
     }
 
     // ==========================
+    //  Secuencia Excel por Proforma (localStorage)
+    // ==========================
+    function isToggleActive() {
+        const el = document.getElementById("multiCompareToggle");
+        return !!(el && el.checked);
+    }
+    function resetExcelSequenceAll() {
+        const keys = Object.keys(localStorage);
+        for (const k of keys) {
+            if (k.startsWith("excel_seq:")) localStorage.removeItem(k);
+        }
+    }
+    function nextExcelSequence(pfNum) {
+        if (!isToggleActive()) return 1;
+        const key = `excel_seq:${pfNum || ""}`;
+        let n = parseInt(localStorage.getItem(key) || "0", 10);
+        if (!isFinite(n) || n < 0) n = 0;
+        n += 1;
+        localStorage.setItem(key, String(n));
+        return n;
+    }
+    function buildExcelFileName(pfNum, seq) {
+        const base = pfNum && pfNum.trim() ? pfNum.trim() : "002-XXXXX";
+        return `Nº ${base}-${seq}.xlsx`;
+    }
+    function buildFallbackMatchedSet() {
+        const toKey = (c) => normalizeCodigo(c?.codigoNorm || c?.codigo || "");
+        const maestroKeySet = new Set((maestroCodes || []).map(toKey).filter(Boolean));
+        const out = new Set();
+        (modeloCodes || []).forEach(c => {
+            const k = toKey(c);
+            if (k && maestroKeySet.has(k)) out.add(k);
+        });
+        return out;
+    }
+
+    // ==========================
     //  Generar PDF con contador global desde Supabase
     // ==========================
     downloadBtn.addEventListener("click", async () => {
@@ -1167,6 +1573,25 @@ function initGeneradorControlFacturacion() {
         doc.text("Primavera Distribuidores S.A.C. agradece su preferencia.", MARGIN_X + 5, finalY + 18);
 
         doc.save(`${codigoPDF}.pdf`);
+
+        const pfNum = proformaNumber || document.getElementById("proformaManual")?.value?.trim() || "";
+        const seq = nextExcelSequence(pfNum);
+        const excelName = buildExcelFileName(pfNum, seq);
+        const maestroFile = window.__lastMaestroFile || document.getElementById("excelFile2")?.files?.[0] || null;
+        let maestroData = window.__lastMaestroData || null;
+        if (!maestroData && maestroFile) {
+            try { maestroData = await extractDataFromExcel(maestroFile); } catch (e) {}
+        }
+        const matchedSet = window.__lastItemsCoincidenSet || buildFallbackMatchedSet();
+        
+        const toggleEl = document.getElementById("multiCompareToggle");
+        const skipExcel = toggleEl && !toggleEl.checked;
+
+        if (!skipExcel && maestroFile && maestroData && matchedSet && matchedSet.size > 0) {
+            try {
+                await generarProformaActualizadaExcel(maestroFile, maestroData, matchedSet, excelName);
+            } catch (e) {}
+        }
 
     } catch (err) {
         alert("Error generando PDF. Revisa la consola.");

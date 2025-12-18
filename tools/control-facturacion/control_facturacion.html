@@ -35,6 +35,20 @@
         </div>
       </div>
 
+      <div class="d-flex justify-content-between align-items-center mb-3 px-3 py-2 border rounded-3 shadow-sm">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-magic text-primary"></i>
+          <div>
+            <div class="small fw-semibold">Activación de Multi Archivos</div>
+            <div class="text-muted small">Al activarlo permitira generar y descargar la nueva proforma extra.</div>
+          </div>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="multiCompareToggle">
+          <label class="form-check-label ms-2" for="multiCompareToggle">Activar</label>
+        </div>
+      </div>
+
       <!-- FILA DE DATOS -->
       <div class="row g-3">
         <!-- N° NUMERACIÓN -->
@@ -135,7 +149,7 @@
           <i class="bi bi-search me-1"></i> Comparar Excel
         </button>
         <button id="downloadBtn" class="btn btn-success">
-          <i class="bi bi-file-earmark-pdf me-1"></i> Descargar PDF
+          <i class="bi bi-file-earmark-pdf me-1"></i> Descargar Archivo
         </button>
         <button id="backBtn" class="btn btn-outline-secondary">
           <i class="bi bi-arrow-counterclockwise me-1"></i> Nueva Comparación
