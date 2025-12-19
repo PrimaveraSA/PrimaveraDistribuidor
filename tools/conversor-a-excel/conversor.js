@@ -58,7 +58,6 @@ function initConversorAExcel() {
             <small class="text-muted">Arrastra otro archivo para reemplazarlo o haz clic nuevamente.</small>
           </div>`;
         convertBtn.disabled = false;
-        downloadDebug.disabled = true;
       } else {
         selectedFile = null;
         dzInner.innerHTML = `
@@ -71,7 +70,6 @@ function initConversorAExcel() {
             <small class="text-muted">Solo se aceptan archivos PDF. Si está escaneado, usa OCR antes de convertirlo.</small>
           </div>`;
         convertBtn.disabled = true;
-        downloadDebug.disabled = true;
       }
     }
 
@@ -146,13 +144,20 @@ function initConversorAExcel() {
           formData.append("IncludeFormatting", "true");
           formData.append("SingleSheet", "true");
 
-          const token = await getConvertApiTokenWithRetry(2500);
+          let token = await getConvertApiTokenWithRetry(2500);
           if (!token) {
-            alert("Debes proporcionar un token de ConvertAPI para continuar.");
-            stopProgress(false);
-            return;
+            setTokenGuideVisible(true);
+            token = await openTokenModal("missing");
+            if (token) {
+              await saveTokenToSupabase(token);
+            } else {
+              alert("Debes proporcionar un token de ConvertAPI para continuar.");
+              stopProgress(false);
+              return;
+            }
           }
-          const response = await fetch("https://v2.convertapi.com/convert/pdf/to/xlsx", {
+          token = typeof token === "string" ? token.trim().replace(/^['"]|['"]$/g, "") : token;
+          let response = await fetch("https://v2.convertapi.com/convert/pdf/to/xlsx", {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
             body: formData,
@@ -162,18 +167,67 @@ function initConversorAExcel() {
           try { result = await response.json(); } catch (_) { result = {}; }
           if (!response.ok || !result || !result.Files || !result.Files[0] || !result.Files[0].Url) {
             if (response.status === 401 || response.status === 403) {
+              let silentRetried = false;
+              if (token) {
+                silentRetried = true;
+                response = await fetch("https://v2.convertapi.com/convert/pdf/to/xlsx", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token}` },
+                  body: formData,
+                });
+                try { result = await response.json(); } catch (_) { result = {}; }
+                if (response.ok && result && result.Files && result.Files[0] && result.Files[0].Url) {
+                  // continúa flujo normal
+                } else {
+                  // requiere pedir nuevo token
+                  setTokenGuideVisible(true);
+                  const newToken = await handleTokenFailure(result);
+                  if (newToken) {
+                    token = typeof newToken === "string" ? newToken.trim().replace(/^['"]|['"]$/g, "") : newToken;
+                    response = await fetch("https://v2.convertapi.com/convert/pdf/to/xlsx", {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${token}` },
+                      body: formData,
+                    });
+                    try { result = await response.json(); } catch (_) { result = {}; }
+                    if (!response.ok || !result || !result.Files || !result.Files[0] || !result.Files[0].Url) {
+                      stopProgress(false);
+                      return;
+                    }
+                  } else {
+                    stopProgress(false);
+                    return;
+                  }
+                }
+              } else {
               setTokenGuideVisible(true);
-              await handleTokenFailure(result);
+              const newToken = await handleTokenFailure(result);
+              if (newToken) {
+                token = typeof newToken === "string" ? newToken.trim().replace(/^['"]|['"]$/g, "") : newToken;
+                response = await fetch("https://v2.convertapi.com/convert/pdf/to/xlsx", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token}` },
+                  body: formData,
+                });
+                try { result = await response.json(); } catch (_) { result = {}; }
+                if (!response.ok || !result || !result.Files || !result.Files[0] || !result.Files[0].Url) {
+                  stopProgress(false);
+                  return;
+                }
+              } else {
+                stopProgress(false);
+                return;
+              }
+              }
             } else {
               setTokenGuideVisible(false);
+              stopProgress(false);
+              return;
             }
-            stopProgress(false);
-            return;
           }
           const fileUrl = result.Files[0].Url;
           const fileName = result.Files[0].FileName || "ArchivoConvertido.xlsx";
 
-          // Descargar Excel
           const excelResponse = await fetch(fileUrl);
           const excelBlob = await excelResponse.blob();
           convertedExcelBlob = excelBlob;
@@ -185,6 +239,13 @@ function initConversorAExcel() {
           a.click();
           a.remove();
 
+          const count = await incrementTokenCounter(token);
+          if (typeof count === "number") {
+            const remaining = 250 - count;
+            const msg = `¡Conversión completada correctamente! Uso del token: ${count}/250${remaining <= 10 ? " (quedan " + remaining + ")" : ""}`;
+            if (mensajeExito) mensajeExito.innerHTML = `<i class="bi bi-check-circle me-2"></i> ${msg}`;
+            if (remaining <= 0) alert("Se alcanzó el límite de 250 conversiones del token actual.");
+          }
 
           // 🔹 Finalizar progreso con éxito
           stopProgress(true);
@@ -275,16 +336,63 @@ async function fetchTokenFromSupabase() {
     const { data, error } = await supa.from("convertapi_tokens").select("token,created_at").order("created_at", { ascending: false }).limit(1);
     if (error) return "";
     const row = (data && data[0]) || null;
-    return row ? row.token : "";
+    const t = row ? row.token : "";
+    return typeof t === "string" ? t.trim().replace(/^['"]|['"]$/g, "") : "";
   } catch (_) { return ""; }
 }
 
 async function saveTokenToSupabase(token) {
   try {
+    token = typeof token === "string" ? token.trim().replace(/^['"]|['"]$/g, "") : token;
     const supa = await supaClient();
-    const { error } = await supa.from("convertapi_tokens").insert({ token });
-    return !error;
+    const { data, error } = await supa
+      .from("convertapi_tokens")
+      .select("id, contador_token")
+      .eq("token", token)
+      .limit(1);
+    if (error) return false;
+    const row = (data && data[0]) || null;
+    if (row) {
+      return true;
+    }
+    const { error: insErr } = await supa.from("convertapi_tokens").insert({ token, contador_token: 0 });
+    return !insErr;
   } catch (_) { return false; }
+}
+
+async function incrementTokenCounter(token) {
+  try {
+    token = typeof token === "string" ? token.trim().replace(/^['"]|['"]$/g, "") : token;
+    const supa = await supaClient();
+    let { data, error } = await supa
+      .from("convertapi_tokens")
+      .select("id, contador_token, created_at")
+      .eq("token", token)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) return null;
+    let row = (data && data[0]) || null;
+    if (!row) {
+      const saved = await saveTokenToSupabase(token);
+      if (!saved) return null;
+      ({ data, error } = await supa
+        .from("convertapi_tokens")
+        .select("id, contador_token, created_at")
+        .eq("token", token)
+        .order("created_at", { ascending: false })
+        .limit(1));
+      if (error) return null;
+      row = (data && data[0]) || null;
+      if (!row) return null;
+    }
+    const current = parseFloat(row.contador_token ?? 0);
+    const next = isNaN(current) ? 1 : Math.min(current + 1, 250);
+    const { error: upErr } = await supa.from("convertapi_tokens").update({ contador_token: next }).eq("id", row.id);
+    if (upErr) return null;
+    return next;
+  } catch (_) {
+    return null;
+  }
 }
 
 function ensureTokenModal() {
@@ -373,13 +481,42 @@ async function getConvertApiTokenWithRetry(maxWaitMs = 2000) {
 
 async function handleTokenFailure(result) {
   const token = await openTokenModal("expired");
-  if (!token) return;
+  if (!token) return "";
   await saveTokenToSupabase(token);
+  return token;
 }
 
 function setTokenGuideVisible(visible) {
-  const guide = document.getElementById("convTokenGuide");
-  if (!guide) return;
-  if (visible) guide.classList.remove("hidden");
-  else guide.classList.add("hidden");
+  let guide = document.getElementById("convTokenGuide");
+  if (!guide) {
+    const container = document.getElementById("tool-title-container") || document.body;
+    const div = document.createElement("div");
+    div.id = "convTokenGuide";
+    div.className = "conv-token-guide mt-3";
+    div.innerHTML = `
+      <div class="conv-token-header">
+        <i class="bi bi-shield-lock me-2"></i>
+        <span class="fw-semibold">Cómo obtener y usar tu token de ConvertAPI</span>
+      </div>
+      <div class="conv-token-body">
+        <ol class="mb-2 ps-3">
+          <li><a href="https://www.convertapi.com/" target="_blank" rel="noopener">Abre convertapi.com</a> y entra con tu cuenta de Google.</li>
+          <li>Ve a <span style="color:#ff6f61; text-decoration:underline;">https://www.convertapi.com/a/api/pdf-to-xlsx</span>.</li>
+          <li>En el lado derecho, el cuadro "Code snippet". Cambia a <b>JavaScript</b> y copia el texto que está entre comillas en:<br>
+            <code>let convertApi = ConvertApi.auth('<span style="color:#ff6f61; font-weight:600;">TU_TOKEN_AQUI</span>')</code>
+          </li>
+        </ol>
+        <div class="small">Cuándo pegarlo: al presionar "Convertir" se abrirá un modal con candado rojo. Pega tu token allí y pulsa "Guardar".</div>
+      </div>
+    `;
+    container.appendChild(div);
+    guide = document.getElementById("convTokenGuide");
+  }
+  if (visible) {
+    guide.classList.remove("hidden");
+    guide.classList.remove("d-none");
+  } else {
+    guide.classList.add("hidden");
+    guide.classList.add("d-none");
+  }
 }
