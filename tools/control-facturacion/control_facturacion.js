@@ -165,16 +165,35 @@ import { supabase } from "../../js/DB.js";
             return isNaN(n) ? NaN : n;
         };
 
+        const updateMapSmart = (map, listCodes) => {
+            listCodes.forEach(c => {
+                const k = normalizeLocal(c.codigoNorm || c.codigo || "");
+                if (!k) return;
+                const existing = map.get(k);
+                if (!existing) {
+                    map.set(k, c);
+                    return;
+                }
+                // Resolución de conflictos: preferir el registro que tenga descripción y cantidad > 0
+                // (Evita que una hoja oculta/duplicada vacía sobrescriba los datos reales)
+                const hasDes = !!c.descripcion;
+                const hasCant = parseNumber(c.cantidad) > 0;
+                const exHasDes = !!existing.descripcion;
+                const exHasCant = parseNumber(existing.cantidad) > 0;
+
+                // Si el nuevo tiene datos y el existente no, actualizamos
+                if ((hasDes && !exHasDes) || (hasCant && !exHasCant)) {
+                    map.set(k, c);
+                }
+                // Si ambos tienen datos, nos quedamos con el primero (existing)
+            });
+        };
+
         const modeloMap = new Map();
-        modeloCodes.forEach(c => {
-            const k = normalizeLocal(c.codigoNorm || c.codigo || "");
-            if (k) modeloMap.set(k, c);
-        });
+        updateMapSmart(modeloMap, modeloCodes);
+
         const maestroMap = new Map();
-        maestroCodes.forEach(c => {
-            const k = normalizeLocal(c.codigoNorm || c.codigo || "");
-            if (k) maestroMap.set(k, c);
-        });
+        updateMapSmart(maestroMap, maestroCodes);
 
         const umDiferentes = [];
         modeloSet.forEach(k => {
@@ -219,16 +238,31 @@ import { supabase } from "../../js/DB.js";
                     const diffC = !eqWithin(ca, cb);
                     const diffS = !eqWithin(sa, sb);
                     if (diffP || diffC || diffS) {
-                        const cantidadDiff = isFinite(cb) && isFinite(ca) ? (cb - ca) : "";
+                        // FIX: Mostrar la diferencia real (A - B) según solicitud: Proforma (A) - Factura (B)
+                        // Si A es Proforma y B es Factura, entonces A - B.
+                        let cantidadDiff = 0;
+                        if (isFinite(cb) && isFinite(ca)) {
+                             cantidadDiff = ca - cb;
+                        } else if (isFinite(ca)) {
+                             cantidadDiff = ca;
+                        } else if (isFinite(cb)) {
+                             cantidadDiff = -cb;
+                        }
+                        
+                        // FIX: Si la diferencia es casi cero, forzar 0
+                        if (Math.abs(cantidadDiff) < 1e-2) cantidadDiff = 0;
+
                         valoresDiferentes.push({
                             codigo: a.codigo || b.codigo,
                             codigoNorm: k,
                             descripcion: a.descripcion || b.descripcion || "",
                             um: a.um || "",
                             precio: a.precio || "",
-                            cantidad: formatNum(cantidadDiff),
+                            cantidad: formatNum(cantidadDiff), // Muestra la diferencia
                             subtotal: a.subtotal || "",
-                            _origen: "VALORES_DIFERENTES"
+                            _origen: "VALORES_DIFERENTES",
+                            _cant_modelo: ca, // Guardar valores originales para depuración si se necesita
+                            _cant_maestro: cb
                         });
                     } else {
                         itemsCoinciden.push(b);
@@ -243,7 +277,17 @@ import { supabase } from "../../js/DB.js";
                     const diffC = !eqWithin(ca, cantidadConv);
                     const diffS = !eqWithin(sa, subtotalConv);
                     if (diffP || diffC || diffS) {
-                        const cantidadDiff = (isFinite(cantidadConv) && isFinite(ca)) ? (cantidadConv - ca) : "";
+                        let cantidadDiff = 0;
+                        if (isFinite(cantidadConv) && isFinite(ca)) {
+                             cantidadDiff = ca - cantidadConv;
+                        } else if (isFinite(ca)) {
+                             cantidadDiff = ca;
+                        } else if (isFinite(cantidadConv)) {
+                             cantidadDiff = -cantidadConv;
+                        }
+                        
+                        if (Math.abs(cantidadDiff) < 1e-2) cantidadDiff = 0;
+
                         valoresDiferentes.push({
                             codigo: a.codigo || b.codigo,
                             codigoNorm: k,
@@ -505,9 +549,12 @@ import { supabase } from "../../js/DB.js";
         let idxCodigo = -1, idxDescripcion = -1, idxUM = -1, idxPrecio = -1, idxCantidad = -1, idxSubtotal = -1;
         const isHeaderRow = (rowArr) => {
             const rowU = (rowArr || []).map(h => (h ? String(h).trim().toUpperCase() : ""));
-            const hasCod = rowU.some(h => /^(#|COD|CÓD|CÓDIGO|CODIGO)$/.test(h) || /\bCOD\b/.test(h));
-            const hasDes = rowU.some(h => /DESCRIP|DESCRIPCIÓN|DESCRIPCION|\bDES\b/.test(h));
-            return hasCod && hasDes;
+            const hasCod = rowU.some(h => /^(#|COD|CÓD|CÓDIGO|CODIGO|CO)$/.test(h) || /\bCOD\b/.test(h));
+            // Agregado PRODUCTO, ARTICULO, DETALLE para mayor compatibilidad
+            const hasDes = rowU.some(h => /DESCRIP|DESCRIPCIÓN|DESCRIPCION|\bDES\b|PRODUCTO|ARTICULO|DETALLE/.test(h));
+            // Verificación extra para evitar falsos positivos en metadatos
+            const hasExtra = rowU.some(h => /PRECIO|CANT|TOTAL|UM|UNIDAD/.test(h));
+            return hasCod && hasDes && hasExtra;
         };
 
         const isUmCandidate = (s) => {
@@ -545,10 +592,11 @@ import { supabase } from "../../js/DB.js";
 
                 const matchIndex = (re) => headers.findIndex(h => re.test(h.replace(/[\s\.;:_-]+/g, " "))); // normaliza separadores
 
-                idxCodigo = matchIndex(/\b(#|COD|CÓD|CÓDIGO|CODIGO)\b/);
+                idxCodigo = matchIndex(/\b(#|COD|CÓD|CÓDIGO|CODIGO|CO)\b/);
                 if (idxCodigo < 0) idxCodigo = findSafeIndex("COD");
+                if (idxCodigo < 0) idxCodigo = headers.findIndex(h => h === "CO");
 
-                idxDescripcion = matchIndex(/DESCRIP|DESCRIPCIÓN|DESCRIPCION|\bDES\b/);
+                idxDescripcion = matchIndex(/DESCRIP|DESCRIPCIÓN|DESCRIPCION|\bDES\b|PRODUCTO|ARTICULO|DETALLE/);
                 if (idxDescripcion < 0) idxDescripcion = findSafeIndex("DES");
 
                 idxUM = matchIndex(/\bU\.?\s*M\b|UNIDAD(\s*DE\s*MEDIDA)?|\bUND\b|\bUNID\b|U\/?M/);
@@ -559,11 +607,35 @@ import { supabase } from "../../js/DB.js";
                 if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("P.UNIT"));
                 if (idxPrecio < 0) idxPrecio = headers.findIndex(h => h.includes("PRECIO"));
 
-                idxCantidad = matchIndex(/\bCANT(IDAD)?\b/);
+                idxCantidad = matchIndex(/\bCANT(IDAD)?\b|\bQ\b|UNIDADES|CANT\./);
                 if (idxCantidad < 0) idxCantidad = findSafeIndex("CANT");
 
                 idxSubtotal = matchIndex(/SUB\s*TOTAL|SUBTOTAL|\bSUB\b/);
                 if (idxSubtotal < 0) idxSubtotal = findSafeIndex("SUB");
+
+                // === HEURÍSTICAS DE RESCATE (Por si fallan los nombres de cabecera) ===
+                // 1. Si falta DESCRIPCION pero tenemos CODIGO, asumimos que está en la columna siguiente
+                //    (especialmente útil si hay celdas combinadas verticalmente y el header quedó vacío)
+                if (idxDescripcion < 0 && idxCodigo >= 0) {
+                    // Si hay un hueco entre COD y UM
+                    if (idxUM > idxCodigo + 1) {
+                        idxDescripcion = idxCodigo + 1;
+                    } 
+                    // O entre COD y PRECIO
+                    else if (idxPrecio > idxCodigo + 1) {
+                        idxDescripcion = idxCodigo + 1;
+                    }
+                }
+
+                // 2. Si falta CANTIDAD pero tenemos PRECIO y SUBTOTAL
+                if (idxCantidad < 0 && idxPrecio >= 0 && idxSubtotal > idxPrecio + 1) {
+                     // Asumir que está entre Precio y Subtotal
+                     idxCantidad = idxPrecio + 1;
+                }
+                // Si falta CANTIDAD y tenemos PRECIO pero no SUBTOTAL, y la siguiente columna no es vacía?
+                // Arriesgado. Pero en el caso del usuario: PRECIO(4), CANT(5), SUBTOTAL(6).
+                // Si SUBTOTAL no se detecta (ej. header vacio), pero PRECIO sí.
+                // Podemos probar idxPrecio + 1.
 
                 if (idxUM < 0 && idxDescripcion >= 0 && idxPrecio >= 0) {
                     const candidate = idxPrecio - 1;
@@ -582,10 +654,44 @@ import { supabase } from "../../js/DB.js";
             if (anyTotal) continue;
 
             const codigoRaw = cleanVal(row[idxCodigo]);
-            const descripcion = idxDescripcion >= 0 ? cleanVal(row[idxDescripcion]) : "";
+            
+            // Rescate de vecinos para descripción y cantidad
+            // (Ayuda si la columna detectada está vacía pero la de al lado tiene datos debido a celdas combinadas)
+            let descripcion = "";
+            if (idxDescripcion >= 0) {
+                descripcion = cleanVal(row[idxDescripcion]);
+                if (!descripcion) {
+                    // Si está vacío, probar izquierda (si no es codigo) y derecha (si no es UM)
+                    if (idxDescripcion - 1 >= 0 && idxDescripcion - 1 !== idxCodigo) {
+                        const vLeft = cleanVal(row[idxDescripcion - 1]);
+                        if (vLeft) descripcion = vLeft;
+                    }
+                    if (!descripcion && idxDescripcion + 1 < row.length && idxDescripcion + 1 !== idxUM) {
+                        const vRight = cleanVal(row[idxDescripcion + 1]);
+                        if (vRight) descripcion = vRight;
+                    }
+                }
+            }
+
             const um = extractUMFromRow(row, idxUM, idxDescripcion, idxPrecio);
             const precio = idxPrecio >= 0 ? cleanVal(row[idxPrecio]) : "";
-            const cantidad = idxCantidad >= 0 ? cleanVal(row[idxCantidad]) : "";
+            
+            let cantidad = "";
+            if (idxCantidad >= 0) {
+                cantidad = cleanVal(row[idxCantidad]);
+                if (!cantidad) {
+                     // Rescate vecinos para cantidad
+                     if (idxCantidad - 1 >= 0 && idxCantidad - 1 !== idxPrecio) {
+                        const vLeft = cleanVal(row[idxCantidad - 1]);
+                        if (vLeft && /^\d/.test(vLeft)) cantidad = vLeft;
+                     }
+                     if (!cantidad && idxCantidad + 1 < row.length && idxCantidad + 1 !== idxSubtotal) {
+                        const vRight = cleanVal(row[idxCantidad + 1]);
+                        if (vRight && /^\d/.test(vRight)) cantidad = vRight;
+                     }
+                }
+            }
+            
             const subtotal = idxSubtotal >= 0 ? cleanVal(row[idxSubtotal]) : "";
             const codigoNorm = normalizeCodigo(codigoRaw);
             if (codigoNorm) {
@@ -671,7 +777,7 @@ import { supabase } from "../../js/DB.js";
                 const isHeaderRow = (rowArr) => {
                     const rowU = (rowArr || []).map(h => up(h));
                     const hasItem = rowU.some(h => /\bITEM\b/.test(h));
-                    const hasCod = rowU.some(h => /\bCOD\b|\bCÓD\b|\bCÓDIGO\b|\bCODIGO\b/.test(h));
+                    const hasCod = rowU.some(h => /\bCOD\b|\bCÓD\b|\bCÓDIGO\b|\bCODIGO\b|\bCO\b/.test(h));
                     const hasDes = rowU.some(h => /DESCRIP|DESCRIPCIÓN|DESCRIPCION|\bDES\b/.test(h));
                     const hasUM = rowU.some(h => /\bUM\b|U\/?M/.test(h));
                     const hasPrecio = rowU.some(h => /PRECIO|P\.?\s*UNIT/.test(h));
@@ -691,12 +797,22 @@ import { supabase } from "../../js/DB.js";
                             return i >= 0 ? i : headers.findIndex(h => (h || "").includes(fallback));
                         };
                         colItem = findIdx(/\bITEM\b/, "ITEM");
-                        colCod = findIdx(/\b(COD|CÓD|CÓDIGO|CODIGO)\b/, "COD");
+                        colCod = findIdx(/\b(COD|CÓD|CÓDIGO|CODIGO|CO)\b/, "COD");
                         colDes = findIdx(/DESCRIP|DESCRIPCIÓN|DESCRIPCION|\bDES\b/, "DES");
                         colUM = findIdx(/\bUM\b|U\/?M/, "UM");
                         colPrecio = findIdx(/P\.?\s*UNIT|PRECIO/, "PRECIO");
                         colCant = findIdx(/\bCANT(IDAD)?\b/, "CANT");
                         colSub = findIdx(/SUB\s*TOTAL|SUBTOTAL/, "SUB");
+
+                        // Heurísticas de rescate
+                        if (colDes < 0 && colCod >= 0) {
+                            if (colUM > colCod + 1) colDes = colCod + 1;
+                            else if (colPrecio > colCod + 1) colDes = colCod + 1;
+                        }
+                        if (colCant < 0 && colPrecio >= 0 && colSub > colPrecio + 1) {
+                            colCant = colPrecio + 1;
+                        }
+
                         break;
                     }
                 }
