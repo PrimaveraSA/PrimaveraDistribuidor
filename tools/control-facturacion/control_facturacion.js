@@ -238,15 +238,15 @@ import { supabase } from "../../js/DB.js";
                     const diffC = !eqWithin(ca, cb);
                     const diffS = !eqWithin(sa, sb);
                     if (diffP || diffC || diffS) {
-                        // FIX: Mostrar la diferencia real (A - B) según solicitud: Proforma (A) - Factura (B)
-                        // Si A es Proforma y B es Factura, entonces A - B.
+                        // FIX: Mostrar la diferencia real (B - A) donde B es Maestro (Proforma/SP) y A es Modelo (Factura)
+                        // Proforma (B) - Factura (A) = Pendiente
                         let cantidadDiff = 0;
                         if (isFinite(cb) && isFinite(ca)) {
-                             cantidadDiff = ca - cb;
-                        } else if (isFinite(ca)) {
-                             cantidadDiff = ca;
+                             cantidadDiff = cb - ca;
                         } else if (isFinite(cb)) {
-                             cantidadDiff = -cb;
+                             cantidadDiff = cb;
+                        } else if (isFinite(ca)) {
+                             cantidadDiff = -ca;
                         }
                         
                         // FIX: Si la diferencia es casi cero, forzar 0
@@ -279,11 +279,11 @@ import { supabase } from "../../js/DB.js";
                     if (diffP || diffC || diffS) {
                         let cantidadDiff = 0;
                         if (isFinite(cantidadConv) && isFinite(ca)) {
-                             cantidadDiff = ca - cantidadConv;
-                        } else if (isFinite(ca)) {
-                             cantidadDiff = ca;
+                             cantidadDiff = cantidadConv - ca;
                         } else if (isFinite(cantidadConv)) {
-                             cantidadDiff = -cantidadConv;
+                             cantidadDiff = cantidadConv;
+                        } else if (isFinite(ca)) {
+                             cantidadDiff = -ca;
                         }
                         
                         if (Math.abs(cantidadDiff) < 1e-2) cantidadDiff = 0;
